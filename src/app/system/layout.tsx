@@ -6,6 +6,8 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Sidebar from '@/components/layout/Sidebar';
 import { Menu, Bell, Search } from 'lucide-react';
 
+import '@/app/globals.css'
+
 export default function SystemLayout({
   children,
 }: {

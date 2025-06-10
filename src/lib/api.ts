@@ -102,21 +102,26 @@ export const productsApi = {
     return response.data;
   },
   
-  getNextId: async (): Promise<ApiResponse> => {
-    const response = await apiClient.get('/api/product/next-id');
-    return response.data;
-  }
+  // getNextId: async (): Promise<ApiResponse> => {
+  //   const response = await apiClient.get('/api/product/next-id');
+  //   return response.data;
+  // }
 };
 
 // Clients API - Based on your Swagger "/api/client"
 export const clientsApi = {
   getAll: async (): Promise<ApiResponse> => {
-    const response = await apiClient.get('/client');
+    const response = await apiClient.get('/api/client');
     return response.data;
   },
   
   create: async (client: { cus_name: string; address: string; phone_number: string }): Promise<ApiResponse> => {
-    const response = await apiClient.post('/client', client);
+    const response = await apiClient.post('/api/client', client);
+    return response.data;
+  },
+
+  search: async (searchTerm: string): Promise<ApiResponse> => {
+    const response = await apiClient.get(`/api/client/${searchTerm}`);
     return response.data;
   }
 };
@@ -129,7 +134,7 @@ export const ordersApi = {
   },
   
   create: async (order: any): Promise<ApiResponse> => {
-    const response = await apiClient.post('/order', order);
+    const response = await apiClient.post('/api/order', order);
     return response.data;
   },
   
@@ -147,7 +152,7 @@ export const ordersApi = {
 // Pawns API - Based on your Swagger "/api/pawn"
 export const pawnsApi = {
   create: async (pawn: any): Promise<ApiResponse> => {
-    const response = await apiClient.post('/pawn', pawn);
+    const response = await apiClient.post('/api/pawn', pawn);
     return response.data;
   },
   
@@ -157,7 +162,7 @@ export const pawnsApi = {
     if (params.cus_name) searchParams.append('cus_name', params.cus_name);
     if (params.phone_number) searchParams.append('phone_number', params.phone_number);
     
-    const response = await apiClient.get(`/pawn?${searchParams}`);
+    const response = await apiClient.get(`/api/pawn?${searchParams}`);
     return response.data;
   }
 };

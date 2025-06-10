@@ -1,31 +1,41 @@
 'use client';
 
+import FontTest from '@/components/FontTest';
 import { useState, useEffect } from 'react';
 import { productsApi } from '@/lib/api';
 import { 
-  Plus, 
-  Search, 
   Edit2, 
   Trash2, 
   Package, 
   X,
   AlertCircle,
   CheckCircle,
-  Loader2,
   DollarSign,
-  Hash
+  Hash,
+  Save,
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
+import { colors } from '@/lib/colors';
 
+// Import UI Components
+import { Button } from '@/components/ui/Button';
+import { Table } from '@/components/ui/Table';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { Card } from '@/components/ui/Card';
+import { ActionButton } from '@/components/ui/ActionButton';
+
+// Updated interface to match your API response
 interface Product {
   id: number;
-  name: string;
-  price?: number;
-  amount?: number;
+  name: string;  // Changed from prod_name to name
+  price?: number | null;  // Changed from unit_price to price
+  amount?: number | null;
 }
 
 interface FormData {
-  prod_name: string;
-  unit_price: string;
+  prod_name: string;  // Keep as prod_name for API request
+  unit_price: string; // Keep as unit_price for API request
   amount: string;
 }
 
@@ -34,14 +44,20 @@ interface Notification {
   message: string;
 }
 
+interface DeleteModal {
+  isOpen: boolean;
+  product: Product | null;
+}
+
 export default function ProductPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [notification, setNotification] = useState<Notification | null>(null);
+  const [deleteModal, setDeleteModal] = useState<DeleteModal>({ isOpen: false, product: null });
   const [formData, setFormData] = useState<FormData>({
     prod_name: '',
     unit_price: '',
@@ -65,6 +81,13 @@ export default function ProductPage() {
     setNotification({ type, message });
   };
 
+  // Function to calculate next ID from existing products
+  const getNextId = (): number => {
+    if (products.length === 0) return 1;
+    const maxId = Math.max(...products.map(product => product.id));
+    return maxId + 1;
+  };
+
   const loadProducts = async () => {
     try {
       setLoading(true);
@@ -85,21 +108,25 @@ export default function ProductPage() {
   const resetForm = () => {
     setFormData({ prod_name: '', unit_price: '', amount: '' });
     setEditingProduct(null);
-    setShowForm(false);
   };
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     setFormData({
-      prod_name: product.name,
-      unit_price: product.price?.toString() || '',
+      prod_name: product.name, // Map name to prod_name
+      unit_price: product.price?.toString() || '', // Map price to unit_price
       amount: product.amount?.toString() || ''
     });
-    setShowForm(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.prod_name.trim()) {
+      showNotification('error', 'សូមបញ្ចូលឈ្មោះទំនិញ');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -126,49 +153,223 @@ export default function ProductPage() {
           editingProduct ? 'ទំនិញត្រូវបានកែប្រែដោយជោគជ័យ' : 'ទំនិញត្រូវបានបង្កើតដោយជោគជ័យ'
         );
         resetForm();
-        loadProducts();
+        loadProducts(); // Reload to get updated list and recalculate next ID
       } else {
         showNotification('error', response.message || 'មានបញ្ហាក្នុងការរក្សាទុកទំនិញ');
       }
     } catch (error: any) {
       console.error('Error saving product:', error);
-      const errorMessage = error.response?.data?.detail || 'មានបញ្ហាក្នុងការរក្សាទុកទំនិញ';
+      const errorMessage = error.response?.data?.message || 'មានបញ្ហាក្នុងការរក្សាទុកទំនិញ';
       showNotification('error', errorMessage);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (productId: number, productName: string) => {
-    if (!confirm(`តើអ្នកពិតជាចង់លុបទំនិញ "${productName}" មែនទេ?`)) {
-      return;
-    }
+  const openDeleteModal = (product: Product) => {
+    setDeleteModal({ isOpen: true, product });
+  };
 
+  const closeDeleteModal = () => {
+    setDeleteModal({ isOpen: false, product: null });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.product) return;
+
+    setDeleting(true);
     try {
-      const response = await productsApi.delete(productId);
+      const response = await productsApi.delete(deleteModal.product.id);
       if (response.code === 200) {
         showNotification('success', 'ទំនិញត្រូវបានលុបដោយជោគជ័យ');
-        loadProducts();
+        loadProducts(); // Reload to recalculate next ID
+        closeDeleteModal();
       } else {
         showNotification('error', 'មិនអាចលុបទំនិញបានទេ');
       }
     } catch (error: any) {
       console.error('Error deleting product:', error);
       showNotification('error', 'មានបញ្ហាក្នុងការលុបទំនិញ');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Fix the filter to handle undefined/null values and use correct field name
+  const filteredProducts = products.filter(product => 
+    product?.name?.toLowerCase()?.includes(searchTerm.toLowerCase() || '') || false
   );
 
+  // Table columns configuration with correct field mapping
+  const columns = [
+    {
+      key: 'id',
+      label: 'លេខសំគាល់',
+      width: '100px',
+      align: 'center' as const,
+      render: (value: any) => (
+        <span style={{ color: colors.secondary[700], fontWeight: '500' }}>{value}</span>
+      )
+    },
+    {
+      key: 'name', // Changed from prod_name to name
+      label: 'ឈ្មោះទំនិញ',
+      width: '300px', // Give more space for longer product names
+      render: (value: any) => (
+        <span className="font-medium" style={{ color: colors.secondary[900] }}>
+          {value || '-'}
+        </span>
+      )
+    },
+    {
+      key: 'price', // Changed from unit_price to price
+      label: 'តំលៃក្នុងមួយឯកតា',
+      width: '140px',
+      align: 'center' as const,
+      render: (value: any) => (
+        <span style={{ color: colors.secondary[700], fontWeight: '500' }}>
+          {value ? `${value.toFixed(2)}` : '-'}
+        </span>
+      )
+    },
+    {
+      key: 'amount',
+      label: 'ចំនួន',
+      width: '80px',
+      align: 'center' as const,
+      render: (value: any) => (
+        <span style={{ color: colors.secondary[700], fontWeight: '500' }}>
+          {value || '-'}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'ប្រតិបត្តិការ',
+      width: '120px',
+      align: 'center' as const,
+      render: (value: any, row: Product) => (
+        <div className="flex items-center justify-center space-x-2">
+          <ActionButton
+            onClick={() => handleEdit(row)}
+            icon={<Edit2 className="h-4 w-4" />}
+            variant="edit"
+            title="កែប្រែ"
+          />
+          <ActionButton
+            onClick={() => openDeleteModal(row)}
+            icon={<Trash2 className="h-4 w-4" />}
+            variant="delete"
+            title="លុប"
+          />
+        </div>
+      )
+    }
+  ];
+
   return (
-    <div className="space-y-6">
+    <div 
+      className="h-full overflow-hidden flex flex-col" 
+      style={{ backgroundColor: colors.secondary[50] }}
+    >
+      {/* Delete Confirmation Modal */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop with blur */}
+          <div 
+            className="absolute inset-0 bg-opacity-20 backdrop-blur-sm"
+            onClick={closeDeleteModal}
+          />
+          
+          {/* Modal */}
+          <div 
+            className="relative bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            style={{ backgroundColor: 'white' }}
+          >
+            {/* Header */}
+            <div className="flex items-center space-x-3 mb-4">
+              <div 
+                className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: colors.error[100] }}
+              >
+                <AlertTriangle 
+                  className="h-6 w-6" 
+                  style={{ color: colors.error[600] }}
+                />
+              </div>
+              <div>
+                <h3 
+                  className="text-lg font-semibold"
+                  style={{ color: colors.secondary[900] }}
+                >
+                  បញ្ជាក់ការលុប
+                </h3>
+                <p 
+                  className="text-sm"
+                  style={{ color: colors.secondary[600] }}
+                >
+                  សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ
+                </p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="mb-6">
+              <p 
+                className="text-sm"
+                style={{ color: colors.secondary[700] }}
+              >
+                តើអ្នកពិតជាចង់លុបទំនិញ{' '}
+                <span className="font-semibold font-khmer">
+                  "{deleteModal.product?.name}"
+                </span>{' '}
+                មែនទេ?
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex space-x-3">
+              <Button
+                onClick={closeDeleteModal}
+                variant="secondary"
+                className="flex-1"
+                disabled={deleting}
+              >
+                បោះបង់
+              </Button>
+              <Button
+                onClick={confirmDelete}
+                className="flex-1"
+                loading={deleting}
+                disabled={deleting}
+                style={{
+                  backgroundColor: colors.error[600],
+                  borderColor: colors.error[600]
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = colors.error[700];
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = colors.error[600];
+                }}
+              >
+                លុប
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Notification */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center space-x-2 ${
-          notification.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
+        <div 
+          className="fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center space-x-2"
+          style={{
+            backgroundColor: notification.type === 'success' ? colors.success[50] : colors.error[50],
+            color: notification.type === 'success' ? colors.success[800] : colors.error[800],
+            border: `1px solid ${notification.type === 'success' ? colors.success[200] : colors.error[200]}`
+          }}
+        >
           {notification.type === 'success' ? (
             <CheckCircle className="h-5 w-5" />
           ) : (
@@ -181,228 +382,168 @@ export default function ProductPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">គ្រប់គ្រងទំនិញ</h1>
-            <p className="text-gray-600 mt-1">បញ្ជីទំនិញនិងការគ្រប់គ្រង</p>
-          </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            ewhuiofhjkwouierhw
-          </button>
-        </div>
-      </div>
-
-      {/* Search and Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                placeholder="ស្វែងរកទំនិញ..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Package className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">ទំនិញសរុប</p>
-              <p className="text-2xl font-bold text-gray-900">{products.length}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Product Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-40 overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div 
-              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
-              onClick={() => !submitting && resetForm()}
-            ></div>
-            
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <form onSubmit={handleSubmit}>
-                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                  <div className="sm:flex sm:items-start">
-                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                      <Package className="h-6 w-6 text-blue-600" />
+      {/* Main Content - Fit within available space */}
+      <div className="flex-1 p-4 overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+        <div className="h-full grid grid-cols-1 xl:grid-cols-3 gap-4 max-w-full">
+          
+          {/* Left Panel - Form (1/3 width on xl screens) */}
+          <div className="xl:col-span-1 flex flex-col">
+            <Card title="បំពេញទំនិញថ្មី" className="h-full flex flex-col">
+              <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+                <div className="space-y-4 flex-1">
+                  {/* Product ID */}
+                  <div>
+                    <label 
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: colors.secondary[700] }}
+                    >
+                      លេខសំគាល់
+                    </label>
+                    <div 
+                      className="px-3 py-2 border rounded-md text-left text-sm font-medium"
+                      style={{ 
+                        backgroundColor: colors.secondary[100],
+                        borderColor: colors.secondary[300],
+                        color: colors.secondary[600]
+                      }}
+                    >
+                      {editingProduct ? (
+                        `កំពុងកែប្រែ: ${editingProduct.id}`
+                      ) : (
+                        `${getNextId()}`
+                      )}
                     </div>
-                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
-                      <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                        {editingProduct ? 'កែប្រែទំនិញ' : 'បញ្ចូលទំនិញថ្មី'}
-                      </h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            ឈ្មោះទំនិញ *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            disabled={submitting}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                            value={formData.prod_name}
-                            onChange={(e) => setFormData({...formData, prod_name: e.target.value})}
-                            placeholder="បញ្ចូលឈ្មោះទំនិញ"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <DollarSign className="inline h-4 w-4 mr-1" />
-                            តម្លៃលក់
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            disabled={submitting}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                            value={formData.unit_price}
-                            onChange={(e) => setFormData({...formData, unit_price: e.target.value})}
-                            placeholder="បញ្ចូលតម្លៃ"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <Hash className="inline h-4 w-4 mr-1" />
-                            បរិមាណ
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            disabled={submitting}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                            value={formData.amount}
-                            onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                            placeholder="sgrjiodsgfljnkdsfljsgfjlh"
-                          />
-                        </div>
-                      </div>
+                  </div>
+
+                  {/* Product Name */}
+                  <div>
+                    <label 
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: colors.secondary[700] }}
+                    >
+                      ឈ្មោះទំនិញ
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.prod_name}
+                      onChange={(e) => setFormData({ ...formData, prod_name: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      style={{ 
+                        borderColor: colors.secondary[300],
+                      }}
+                      placeholder="បញ្ចូលឈ្មោះទំនិញ"
+                      required
+                    />
+                  </div>
+
+                  {/* Unit Price */}
+                  <div>
+                    <label 
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: colors.secondary[700] }}
+                    >
+                      តំលៃក្នុងមួយឯកតា
+                    </label>
+                    <div className="relative">
+                      <DollarSign 
+                        className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4"
+                        style={{ color: colors.secondary[400] }}
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.unit_price}
+                        onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                        className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        style={{ 
+                          borderColor: colors.secondary[300],
+                        }}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Amount */}
+                  <div>
+                    <label 
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: colors.secondary[700] }}
+                    >
+                      ចំនួន
+                    </label>
+                    <div className="relative">
+                      <Hash 
+                        className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4"
+                        style={{ color: colors.secondary[400] }}
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.amount}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        style={{ 
+                          borderColor: colors.secondary[300],
+                        }}
+                        placeholder="0"
+                      />
                     </div>
                   </div>
                 </div>
-                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                  <button
+
+                {/* Action Buttons - Pinned to bottom */}
+                <div className="flex space-x-3 pt-6 mt-auto">
+                  <Button
                     type="submit"
                     disabled={submitting}
-                    className="w-full inline-flex justify-center items-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                    loading={submitting}
+                    icon={<Save className="h-4 w-4" />}
+                    className="flex-1"
                   >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                        កំពុងរក្សាទុក...
-                      </>
-                    ) : (
-                      'រក្សាទុក'
-                    )}
-                  </button>
-                  <button
+                    {editingProduct ? 'កែប្រែ' : 'រក្សាទុក'}
+                  </Button>
+
+                  <Button
                     type="button"
-                    disabled={submitting}
                     onClick={resetForm}
-                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                    variant="secondary"
+                    icon={<RotateCcw className="h-4 w-4" />}
                   >
-                    បោះបង់
-                  </button>
+                    លុប
+                  </Button>
                 </div>
               </form>
-            </div>
+            </Card>
           </div>
-        </div>
-      )}
 
-      {/* Products Table */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
-            បញ្ជីទំនិញ {searchTerm && `(${filteredProducts.length} ក្នុងចំណោម ${products.length})`}
-          </h3>
-        </div>
-        
-        {loading ? (
-          <div className="px-6 py-12 text-center">
-            <Loader2 className="animate-spin h-8 w-8 mx-auto text-gray-400" />
-            <p className="mt-2 text-sm text-gray-500">កំពុងទាញយកទិន្នន័យ...</p>
+          {/* Right Panel - Products Table (2/3 width on xl screens) */}
+          <div className="xl:col-span-2 flex flex-col">
+            <Card title="សន្ទស្សន៍បញ្ជីទំនិញ" padding={false} className="h-full flex flex-col">
+              {/* Search Header */}
+              <div className="p-4 border-b flex-shrink-0" style={{ borderBottomColor: colors.secondary[200] }}>
+                <SearchInput
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder="ស្វែងរកទំនិញ..."
+                />
+              </div>
+              
+              {/* Table Container - Takes remaining height */}
+              <div className="flex-1 overflow-hidden">
+                <Table
+                  columns={columns}
+                  data={filteredProducts}
+                  loading={loading}
+                  emptyMessage="មិនមានទំនិញក្នុងបញ្ជី"
+                  emptyIcon={<Package className="h-8 w-8" />}
+                  scrollThreshold={6}
+                  className="h-full"
+                />
+              </div>
+            </Card>
           </div>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {filteredProducts.length === 0 ? (
-              <li className="px-6 py-12 text-center">
-                <Package className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  {searchTerm ? 'រកមិនឃើញទំនិញ' : 'មិនមានទំនិញ'}
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm ? 'សូមព្យាយាមស្វែងរកដោយពាក្យគន្លឹះផ្សេង' : 'ចាប់ផ្តើមដោយការបង្កើតទំនិញថ្មី'}
-                </p>
-              </li>
-            ) : (
-              filteredProducts.map((product) => (
-                <li key={product.id} className="hover:bg-gray-50 transition-colors duration-150">
-                  <div className="px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center flex-1">
-                      <div className="flex-shrink-0">
-                        <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                          <Package className="h-5 w-5 text-blue-600" />
-                        </div>
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                        <div className="text-sm text-gray-500">
-                          លេខសម្គាល់: #{product.id}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-6">
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900">
-                          {product.price ? `${product.price.toFixed(2)}` : 'មិនបានកំណត់'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          បរិមាណ: {product.amount || 'មិនបានកំណត់'}
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => handleEdit(product)}
-                          className="text-blue-600 hover:text-blue-900 p-1 rounded transition-colors duration-150"
-                          title="កែប្រែ"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(product.id, product.name)}
-                          className="text-red-600 hover:text-red-900 p-1 rounded transition-colors duration-150"
-                          title="លុប"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
-        )}
+        </div>
       </div>
     </div>
   );

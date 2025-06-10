@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
+import { useSettings } from '@/contexts/SettingsContext';
 import { 
   User, 
   ChevronDown, 
@@ -20,6 +21,7 @@ interface ProfileDropdownProps {
 
 export default function ProfileDropdown({ onClose, isCollapsed = false }: ProfileDropdownProps) {
   const { user, logout } = useAuth();
+  const { openSettings } = useSettings();
   const [showDropdown, setShowDropdown] = useState(false);
 
   const handleDropdownToggle = () => {
@@ -37,13 +39,12 @@ export default function ProfileDropdown({ onClose, isCollapsed = false }: Profil
   };
 
   const handleSettingsClick = () => {
-    // Add settings functionality here
     setShowDropdown(false);
-    console.log('Opening settings...');
+    openSettings(); // This will trigger the global settings popup
+    console.log('Opening settings popup...');
   };
 
   const handleProfileClick = () => {
-    // Add profile functionality here
     setShowDropdown(false);
     console.log('Opening profile...');
   };
@@ -72,7 +73,7 @@ export default function ProfileDropdown({ onClose, isCollapsed = false }: Profil
                 {user?.phone_number}
               </p>
               <p className="text-xs text-gray-500 capitalize">
-                {user?.role} • អនឡាញ
+                {user?.role}
               </p>
             </div>
           )}
@@ -90,7 +91,7 @@ export default function ProfileDropdown({ onClose, isCollapsed = false }: Profil
 
       {/* Dropdown Menu */}
       {showDropdown && (
-        <div className={`absolute bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50 ${
+        <div className={`absolute bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-40 ${
           isCollapsed 
             ? 'bottom-0 left-full ml-2 w-48' 
             : 'bottom-full left-0 right-0 mb-1'
@@ -115,7 +116,7 @@ export default function ProfileDropdown({ onClose, isCollapsed = false }: Profil
               ព័ត៌មានផ្ទាល់ខ្លួន
             </button>
 
-            {/* Settings */}
+            {/* Settings - Triggers Global Popup */}
             <button 
               onClick={handleSettingsClick}
               className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"

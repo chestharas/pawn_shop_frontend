@@ -1,9 +1,23 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import ClientWrapper from '@/components/ClientWrapper';
+import { SettingsProvider } from '@/contexts/SettingsContext';
+import SettingsPopup from '@/components/SettingsPopup';
+import { Geist, Geist_Mono } from 'next/font/google';
 
-const inter = Inter({ subsets: ['latin'] });
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+  display: 'swap',
+  weight: ['300', '400', '500', '600', '700'],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+  display: 'swap',
+  weight: ['300', '400', '500', '600', '700'],
+});
 
 export const metadata: Metadata = {
   title: 'Business Management System',
@@ -15,14 +29,16 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  console.log('Root Layout is rendering'); // Debug log
-  
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <ClientWrapper>
-          {children}
-        </ClientWrapper>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <SettingsProvider>
+          <ClientWrapper>
+            {children}
+            {/* Move SettingsPopup inside ClientWrapper */}
+            <SettingsPopup />
+          </ClientWrapper>
+        </SettingsProvider>
       </body>
     </html>
   );
