@@ -115,13 +115,13 @@ export default function OrderForm({
   const handleOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Get phone number from either formData or foundClient
-    const customerPhone = formData.phone_number || foundClient?.phone_number;
-    const customerName = formData.cus_name || foundClient?.cus_name;
-    const customerAddress = formData.address || foundClient?.address;
+    // Get phone number from either formData or foundClient, with validation
+    const customerPhone = formData.phone_number?.trim() || foundClient?.phone_number?.trim();
+    const customerName = formData.cus_name?.trim() || foundClient?.cus_name?.trim() || '';
+    const customerAddress = formData.address?.trim() || foundClient?.address?.trim() || '';
     const customerId = foundClient?.cus_id || 0;
 
-    if (!customerPhone?.trim()) {
+    if (!customerPhone) {
       onNotification('error', 'សូមបញ្ចូលលេខទូរសព្ទអតិថិជន');
       return;
     }
@@ -137,13 +137,15 @@ export default function OrderForm({
       const orderPayload = {
         order_id: 0,
         cus_id: customerId,
-        cus_name: customerName || '',
-        address: customerAddress || '',
-        phone_number: customerPhone,
+        cus_name: customerName,
+        address: customerAddress,
+        phone_number: customerPhone, // Ensure this is always present
         order_date: orderData.order_date,
         order_deposit: orderData.order_deposit || 0,
         order_product_detail: orderData.order_product_detail
       };
+
+      console.log('📤 Sending order payload:', orderPayload); // Debug log
 
       const response = await ordersApi.create(orderPayload);
       
@@ -162,7 +164,7 @@ export default function OrderForm({
       setSubmittingOrder(false);
     }
   };
-
+  
   return (
     <Card title="បង្កើតការបញ្ជាទិញ" className="h-full flex flex-col">
       <form onSubmit={handleOrderSubmit} className="flex-1 flex flex-col">
@@ -240,17 +242,21 @@ export default function OrderForm({
                       <h4 className="font-medium" style={{ color: colors.secondary[700] }}>
                         ផលិតផលទី {index + 1}
                       </h4>
-                      <Button
-                        type="button"
-                        onClick={() => removeProductFromOrder(index)}
-                        icon={<Minus className="h-4 w-4" />}
-                        variant="secondary"
-                        size="sm"
-                      >
-                        លុប
-                      </Button>
+                      <div className='flex items-center space-x-2'>
+                        <span className='text-sm font-medium' style={{ color: colors.primary[600] }}>
+                          សរុប: ${[((product.order_amount * product.product_sell_price) + product.product_labor_cost).toFixed(2)]}
+                        </span>
+                        <Button
+                          type="button"
+                          onClick={() => removeProductFromOrder(index)}
+                          icon={<Minus className="h-4 w-4" />}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          លុប
+                        </Button>
+                      </div>
                     </div>
-
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium mb-1" style={{ color: colors.secondary[600] }}>

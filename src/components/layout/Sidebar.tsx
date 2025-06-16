@@ -15,7 +15,7 @@ import {
   Bell
 } from 'lucide-react';
 import ProfileDropdown from './ProfileDropdown';
-import { colors, colorCombinations } from '@/lib/colors'; // Simple import
+import { colors, colorCombinations } from '@/lib/colors';
 
 interface NavItem {
   name: string;
@@ -84,29 +84,36 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Fixed position with improved zoom handling */}
       <div 
-        className={`fixed inset-y-0 left-0 z-50 shadow-lg transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+        className={`fixed top-0 left-0 z-50 shadow-lg transform transition-all duration-300 ease-in-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } ${isCollapsed ? 'w-16' : 'w-64'}`}
-        style={{ backgroundColor: colors.white }}
+        style={{ 
+          backgroundColor: colors.white,
+          height: '100vh',
+          minHeight: '100vh',
+          maxHeight: '100vh'
+        }}
       >
         {/* Main Container with Flexbox */}
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col" style={{ height: '100vh' }}>
           
-          {/* Header with Logo */}
+          {/* Header with Logo - Fixed at top */}
           <div 
-            className={`flex items-center justify-between h-16 border-b flex-shrink-0 ${
-              isCollapsed ? 'justify-center' : 'px-4'
+            className={`flex items-center justify-between border-b flex-shrink-0 ${
+              isCollapsed ? 'justify-center px-2' : 'px-4'
             }`}
             style={{ 
               background: `linear-gradient(135deg, ${colors.primary[600]} 0%, ${colors.primary[700]} 100%)`,
-              borderBottomColor: colors.secondary[200]
+              borderBottomColor: colors.secondary[200],
+              height: '4rem',
+              minHeight: '4rem'
             }}
           >
             {!isCollapsed && (
               <h1 
-                className="text-xl font-bold"
+                className="text-xl font-bold truncate"
                 style={{ color: colors.white }}
               >
                 ប្រព័ន្ធគ្រប់គ្រង
@@ -115,7 +122,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             
             {/* Mobile close button */}
             <button
-              className="lg:hidden transition-colors duration-200"
+              className="lg:hidden transition-colors duration-200 flex-shrink-0"
               style={{ color: colors.white }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = colors.secondary[200];
@@ -130,7 +137,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
             {/* Desktop collapse button */}
             <button
-              className="hidden lg:block transition-colors duration-200"
+              className="hidden lg:block transition-colors duration-200 flex-shrink-0"
               style={{ color: colors.white }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = colors.secondary[200];
@@ -148,9 +155,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </button>
           </div>
 
-          {/* Navigation - Flex-grow to take available space */}
-          <nav className="flex-1 px-3 py-6 overflow-y-auto min-h-0">
-            <div className="space-y-5">
+          {/* Navigation - Scrollable middle section */}
+          <nav 
+            className="flex-1 px-3 py-6 overflow-y-auto"
+            style={{ 
+              height: 'calc(100vh - 8rem)',
+              minHeight: 0
+            }}
+          >
+            <div className="space-y-3">
               {navigation.map((item) => {
                 const isActive = isItemActive(item.href);
                 
@@ -168,6 +181,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       color: isActive 
                         ? colorCombinations.navigation.active.text 
                         : colorCombinations.navigation.inactive.text,
+                      minHeight: '2.5rem'
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) {
@@ -185,7 +199,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     title={isCollapsed ? item.name : ''}
                   >
                     <item.icon
-                      className={`h-5 w-5 transition-colors duration-200 ${
+                      className={`h-5 w-5 transition-colors duration-200 flex-shrink-0 ${
                         isCollapsed ? '' : 'mr-3'
                       }`}
                       style={{
@@ -195,7 +209,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       }}
                     />
                     {!isCollapsed && (
-                      <span className="truncate">{item.name}</span>
+                      <span className="truncate flex-1">{item.name}</span>
                     )}
                   </Link>
                 );
@@ -203,12 +217,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
           </nav>
 
-          {/* Bottom Section - Always at bottom */}
+          {/* Bottom Section - Fixed at bottom */}
           <div 
-            className="border-t flex-shrink-0 sticky bottom-0"
+            className="border-t flex-shrink-0"
             style={{ 
               backgroundColor: colors.white,
-              borderTopColor: colors.secondary[200]
+              borderTopColor: colors.secondary[200],
+              height: '4rem',
+              minHeight: '4rem'
             }}
           >
             {/* Profile Dropdown */}
