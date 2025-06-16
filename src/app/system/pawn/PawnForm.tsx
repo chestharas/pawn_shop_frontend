@@ -368,7 +368,7 @@ export default function PawnForm({
                 ))}
 
                 {/* Total Value Summary */}
-                {calculateTotalValue() > 0 && (
+                {/* {calculateTotalValue() > 0 && (
                   <div 
                     className="p-3 rounded-lg"
                     style={{
@@ -385,7 +385,7 @@ export default function PawnForm({
                       </span>
                     </div>
                   </div>
-                )}
+                )} */}
               </div>
             ) : (
               <div 

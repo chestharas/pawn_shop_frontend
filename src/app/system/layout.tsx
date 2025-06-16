@@ -14,19 +14,33 @@ export default function SystemLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const { user } = useAuth();
 
   return (
     <ProtectedRoute requireAdmin={true}>
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-gray-50">
         {/* Sidebar */}
         <Sidebar 
-          isOpen={sidebarOpen} 
-          onClose={() => setSidebarOpen(false)} 
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
         />
 
-        {/* Main content */}
-        <div className="flex-1">
+        {/* Main content with proper spacing for fixed sidebar */}
+        <div className={`transition-all duration-300 ${
+          isCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+        } ml-0`}>
+          {/* Top bar for mobile menu button */}
+          <div className="lg:hidden bg-white shadow-sm border-b px-4 py-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          </div>
 
           {/* Page content */}
           <main className="flex-1">
