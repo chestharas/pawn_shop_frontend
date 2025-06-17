@@ -54,16 +54,54 @@ export default function SettingsPopup() {
     theme: 'light'
   });
 
-  // Zoom functionality
+  // Zoom functionality - FIXED VERSION
   const [zoomLevel, setZoomLevel] = useState(100);
 
   useEffect(() => {
-    // Apply zoom to the document body
-    document.body.style.zoom = `${zoomLevel}%`;
+    // Create a wrapper div for main content if it doesn't exist
+    let mainContentWrapper = document.getElementById('main-content-wrapper');
+    
+    if (!mainContentWrapper) {
+      mainContentWrapper = document.createElement('div');
+      mainContentWrapper.id = 'main-content-wrapper';
+      mainContentWrapper.style.transition = 'transform 0.3s ease';
+      mainContentWrapper.style.transformOrigin = 'top left';
+      
+      // Move all body children except sidebar and fixed elements to the wrapper
+      const bodyChildren = Array.from(document.body.children);
+      const elementsToMove: Element[] = [];
+      
+      bodyChildren.forEach(child => {
+        // Don't move sidebar, fixed elements, or the wrapper itself
+        if (!child.classList.contains('sidebar-container') && 
+            !child.classList.contains('fixed') && 
+            child.id !== 'main-content-wrapper' &&
+            !child.hasAttribute('data-exclude-zoom')) {
+          elementsToMove.push(child);
+        }
+      });
+      
+      // Move elements to wrapper
+      elementsToMove.forEach(element => {
+        mainContentWrapper?.appendChild(element);
+      });
+      
+      document.body.appendChild(mainContentWrapper);
+    }
+
+    // Apply zoom only to the main content wrapper
+    const scale = zoomLevel / 100;
+    mainContentWrapper.style.transform = `scale(${scale})`;
+    mainContentWrapper.style.width = `${100 / scale}%`;
+    mainContentWrapper.style.height = `${100 / scale}%`;
     
     return () => {
-      // Reset zoom when component unmounts
-      document.body.style.zoom = '100%';
+      // Reset on unmount
+      if (mainContentWrapper) {
+        mainContentWrapper.style.transform = 'scale(1)';
+        mainContentWrapper.style.width = '100%';
+        mainContentWrapper.style.height = '100%';
+      }
     };
   }, [zoomLevel]);
 
@@ -225,8 +263,6 @@ export default function SettingsPopup() {
   if (!isSettingsOpen) return null;
 
   const tabs = [
-    // { id: 'profile', label: 'ព័ត៌មាន', icon: User },
-    // { id: 'security', label: 'សុវត្ថិភាព', icon: Shield },
     { id: 'preferences', label: 'ការកំណត់', icon: SettingsIcon },
     { id: 'display', label: 'បង្ហាញ', icon: Eye }
   ];
@@ -255,9 +291,14 @@ export default function SettingsPopup() {
           transform: scale(1);
           opacity: 1;
         }
+
+        .settings-popup-container {
+          zoom: 1 !important;
+          transform: scale(1) !important;
+        }
       `}</style>
       
-      <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="settings-popup-container fixed inset-0 z-50 overflow-y-auto" data-exclude-zoom>
         {/* Backdrop with reduced opacity and blur */}
         <div 
           className={`modal-backdrop fixed inset-0 bg-opacity-20 ${isVisible ? 'visible' : ''}`}
@@ -340,169 +381,6 @@ export default function SettingsPopup() {
 
             {/* Content */}
             <div className="p-6 max-h-96 overflow-y-auto">
-              {/* Profile Tab */}
-              {/* {activeTab === 'profile' && (
-                <form onSubmit={handleProfileUpdate} className="space-y-4">
-                  <div>
-                    <label 
-                      className="block text-sm font-medium mb-2"
-                      style={{ color: colors.secondary[700] }}
-                    >
-                      លេខទូរសព្ទ
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone_number}
-                      onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                      style={{ borderColor: colors.secondary[300] }}
-                      placeholder="បញ្ចូលលេខទូរសព្ទ"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label 
-                      className="block text-sm font-medium mb-2"
-                      style={{ color: colors.secondary[700] }}
-                    >
-                      តួនាទី
-                    </label>
-                    <input
-                      type="text"
-                      value={user?.role || ''}
-                      className="w-full px-3 py-2 border rounded-md"
-                      style={{ 
-                        borderColor: colors.secondary[300],
-                        backgroundColor: colors.secondary[100],
-                        color: colors.secondary[600]
-                      }}
-                      disabled
-                    />
-                  </div>
-
-                  <div className="flex justify-end pt-4">
-                    <Button
-                      type="submit"
-                      loading={loading}
-                      icon={<Save className="h-4 w-4" />}
-                      size="sm"
-                    >
-                      រក្សាទុក
-                    </Button>
-                  </div>
-                </form>
-              )} */}
-
-              {/* Security Tab */}
-              {/* {activeTab === 'security' && (
-                <form onSubmit={handlePasswordUpdate} className="space-y-4">
-                  <div>
-                    <label 
-                      className="block text-sm font-medium mb-2"
-                      style={{ color: colors.secondary[700] }}
-                    >
-                      ពាក្យសម្ងាត់បច្ចុប្បន្ន
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showCurrentPassword ? 'text' : 'password'}
-                        value={formData.current_password}
-                        onChange={(e) => setFormData({ ...formData, current_password: e.target.value })}
-                        className="w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        style={{ borderColor: colors.secondary[300] }}
-                        placeholder="បញ្ចូលពាក្យសម្ងាត់បច្ចុប្បន្ន"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                      >
-                        {showCurrentPassword ? (
-                          <EyeOff className="h-4 w-4" style={{ color: colors.secondary[400] }} />
-                        ) : (
-                          <Eye className="h-4 w-4" style={{ color: colors.secondary[400] }} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label 
-                      className="block text-sm font-medium mb-2"
-                      style={{ color: colors.secondary[700] }}
-                    >
-                      ពាក្យសម្ងាត់ថ្មី
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showNewPassword ? 'text' : 'password'}
-                        value={formData.new_password}
-                        onChange={(e) => setFormData({ ...formData, new_password: e.target.value })}
-                        className="w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        style={{ borderColor: colors.secondary[300] }}
-                        placeholder="បញ្ចូលពាក្យសម្ងាត់ថ្មី"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                      >
-                        {showNewPassword ? (
-                          <EyeOff className="h-4 w-4" style={{ color: colors.secondary[400] }} />
-                        ) : (
-                          <Eye className="h-4 w-4" style={{ color: colors.secondary[400] }} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label 
-                      className="block text-sm font-medium mb-2"
-                      style={{ color: colors.secondary[700] }}
-                    >
-                      បញ្ជាក់ពាក្យសម្ងាត់ថ្មី
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        value={formData.confirm_password}
-                        onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
-                        className="w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        style={{ borderColor: colors.secondary[300] }}
-                        placeholder="បញ្ជាក់ពាក្យសម្ងាត់ថ្មី"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4" style={{ color: colors.secondary[400] }} />
-                        ) : (
-                          <Eye className="h-4 w-4" style={{ color: colors.secondary[400] }} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-4">
-                    <Button
-                      type="submit"
-                      loading={loading}
-                      icon={<Lock className="h-4 w-4" />}
-                      size="sm"
-                    >
-                      កែប្រែពាក្យសម្ងាត់
-                    </Button>
-                  </div>
-                </form>
-              )} */}
-
               {/* Preferences Tab */}
               {activeTab === 'preferences' && (
                 <form onSubmit={handlePreferencesUpdate} className="space-y-4">
@@ -699,7 +577,7 @@ export default function SettingsPopup() {
                         border: `1px solid ${colors.secondary[200]}`
                       }}
                     >
-                      ការពង្រីកនេះនឹងបង្កើនឬបន្ថយទំហំនៃទាំងអស់លើអេក្រង់។ សម្រាប់មនុស្សដែលមានបញ្ហាចំណាំងមើល។
+                      ការពង្រីកនេះនឹងបង្កើនឬបន្ថយទំហំនៃទាំងអស់លើអេក្រង់។
                     </div>
                   </div>
                 </div>

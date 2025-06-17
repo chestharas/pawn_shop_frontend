@@ -245,17 +245,6 @@ export default function ClientForm({
                   required
                 />
               </div>
-              <Button
-                type="button"
-                onClick={handleSearchClient}
-                loading={searching}
-                disabled={searching || !formData.phone_number.trim()}
-                icon={<Search className="h-4 w-4" />}
-                variant="secondary"
-                size="sm"
-              >
-                ស្វែងរក
-              </Button>
             </div>
           </div>
 
@@ -304,14 +293,17 @@ export default function ClientForm({
         {/* Action Buttons - Pinned to bottom */}
         <div className="flex space-x-3 pt-6 mt-auto">
           <Button
-            type="submit"
-            disabled={submitting}
-            loading={submitting}
-            icon={<Save className="h-4 w-4" />}
-            className="flex-1"
-          >
-            រក្សាទុក
-          </Button>
+                type="button"
+                onClick={handleSearchClient}
+                loading={searching}
+                disabled={searching || !formData.phone_number.trim()}
+                icon={<Search className="h-4 w-4" />}
+                className="flex-1"
+                // variant="secondary"
+                // size="sm"
+              >
+                ស្វែងរក
+              </Button>
 
           <Button
             type="button"

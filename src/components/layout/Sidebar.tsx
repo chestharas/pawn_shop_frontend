@@ -84,20 +84,23 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       )}
 
-      {/* Sidebar - Fixed position with improved zoom handling */}
+      {/* Sidebar - Fixed position with zoom-safe positioning */}
       <div 
-        className={`fixed top-0 left-0 z-50 shadow-lg transform transition-all duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-50 shadow-lg transition-all duration-300 ease-in-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } ${isCollapsed ? 'w-16' : 'w-64'}`}
         style={{ 
           backgroundColor: colors.white,
           height: '100vh',
           minHeight: '100vh',
-          maxHeight: '100vh'
+          maxHeight: '100vh',
+          // Remove zoom-related transforms that interfere with dropdown positioning
+          position: 'fixed',
+          zIndex: 50
         }}
       >
         {/* Main Container with Flexbox */}
-        <div className="h-full flex flex-col" style={{ height: '100vh' }}>
+        <div className="h-full flex flex-col relative" style={{ height: '100vh' }}>
           
           {/* Header with Logo - Fixed at top */}
           <div 
@@ -217,21 +220,62 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
           </nav>
 
-          {/* Bottom Section - Fixed at bottom */}
+          {/* Bottom Section - Profile with proper containment */}
           <div 
-            className="border-t flex-shrink-0"
+            className="border-t flex-shrink-0 relative"
             style={{ 
               backgroundColor: colors.white,
               borderTopColor: colors.secondary[200],
               height: '4rem',
-              minHeight: '4rem'
+              minHeight: '4rem',
+              // Ensure this container properly contains the dropdown
+              position: 'relative',
+              zIndex: 1,
+              overflow: 'visible' // Allow dropdown to extend outside
             }}
           >
-            {/* Profile Dropdown */}
-            <ProfileDropdown onClose={onClose} isCollapsed={isCollapsed} />
+            {/* Profile Button - Contained within sidebar bounds */}
+            <div className="relative h-full">
+              <ProfileDropdown onClose={onClose} isCollapsed={isCollapsed} />
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Add CSS to ensure dropdown stays within screen bounds */}
+      <style jsx global>{`
+        /* Ensure profile dropdown positions correctly regardless of zoom */
+        .profile-dropdown {
+          position: absolute !important;
+          bottom: 100% !important;
+          left: 0 !important;
+          right: 0 !important;
+          margin-bottom: 0.5rem !important;
+          max-width: ${isCollapsed ? '200px' : '100%'} !important;
+          z-index: 1000 !important;
+        }
+        
+        /* For collapsed sidebar, position dropdown to the right */
+        .profile-dropdown.collapsed {
+          left: 100% !important;
+          right: auto !important;
+          bottom: 0 !important;
+          margin-left: 0.5rem !important;
+          margin-bottom: 0 !important;
+          width: 200px !important;
+        }
+        
+        /* Prevent dropdown from going off-screen */
+        .profile-dropdown {
+          transform: none !important;
+        }
+        
+        /* Ensure dropdown content is visible */
+        .profile-dropdown > div {
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+          border: 1px solid #e5e7eb !important;
+        }
+      `}</style>
     </>
   );
 }

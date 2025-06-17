@@ -190,7 +190,27 @@ export default function PawnForm({
       <form onSubmit={handlePawnSubmit} className="flex-1 flex flex-col">
         <div className="space-y-4 flex-1 overflow-y-auto max-h-96">
           {/* Pawn Details */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div >
+              <label className='block text-sm font-medium mb-2'>លេខវិក្កយបត្រ: </label>
+              <div 
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ 
+                  backgroundColor: colors.secondary[100],
+                  borderColor: colors.secondary[300],
+                  color: colors.secondary[600]
+                }}
+              >
+                {foundClient ? (
+                  `រកឃើញ: ${foundClient.cus_id}`
+                ) : (
+                  'hello world'
+                  // =============================================================================
+                  // repace this with the get next pawn id
+                  // =============================================================================
+                )}
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: colors.secondary[700] }}>
                 <Calendar className="inline h-4 w-4 mr-1" />
@@ -366,26 +386,6 @@ export default function PawnForm({
                     </div>
                   </div>
                 ))}
-
-                {/* Total Value Summary */}
-                {/* {calculateTotalValue() > 0 && (
-                  <div 
-                    className="p-3 rounded-lg"
-                    style={{
-                      backgroundColor: colors.primary[50],
-                      border: `1px solid ${colors.primary[200]}`
-                    }}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold" style={{ color: colors.primary[800] }}>
-                        តម្លៃសរុប:
-                      </span>
-                      <span className="text-lg font-bold" style={{ color: colors.primary[700] }}>
-                        ${calculateTotalValue().toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                )} */}
               </div>
             ) : (
               <div 

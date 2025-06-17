@@ -51,10 +51,10 @@ export default function ClientForm({
   const [submitting, setSubmitting] = useState(false);
 
   // Debug: Log formData whenever it changes
-  console.log('🔍 Current formData:', formData);
-  console.log('📞 Phone number value:', formData.phone_number);
-  console.log('📞 Phone number type:', typeof formData.phone_number);
-  console.log('📞 Phone number length:', formData.phone_number?.length);
+  // console.log('🔍 Current formData:', formData);
+  // console.log('Phone number value:', formData.phone_number);
+  // console.log('Phone number type:', typeof formData.phone_number);
+  // console.log('Phone number length:', formData.phone_number?.length);
 
   // Function to calculate next ID from existing clients
   const getNextId = (): number => {
@@ -85,7 +85,7 @@ export default function ClientForm({
       
       if (response.code === 200 && response.result && response.result.length > 0) {
         const client = response.result[0];
-        console.log('✅ Client found:', client);
+        console.log('Client found:', client);
         onClientFound(client);
         
         // Auto-fill the form with found client data
@@ -94,12 +94,12 @@ export default function ClientForm({
           address: client.address || '',
           phone_number: client.phone_number || formData.phone_number
         };
-        console.log('📋 Setting form data to:', newFormData);
+        console.log('Setting form data to:', newFormData);
         onFormDataChange(newFormData);
         
         onNotification('success', `រកឃើញអតិថិជន: ${client.cus_name}`);
       } else {
-        console.log('❌ No client found');
+        console.log('No client found');
         onNotification('error', 'មិនរកឃើញអតិថិជនដែលមានលេខទូរសព្ទនេះទេ');
         onClientFound(null);
         
@@ -109,11 +109,11 @@ export default function ClientForm({
           address: '',
           phone_number: formData.phone_number.trim()
         };
-        console.log('📋 Clearing form but keeping phone:', newFormData);
+        console.log('Clearing form but keeping phone:', newFormData);
         onFormDataChange(newFormData);
       }
     } catch (error: any) {
-      console.error('❌ Error searching client:', error);
+      console.error('Error searching client:', error);
       
       // Handle different error cases
       if (error.response?.status === 404) {
@@ -134,7 +134,7 @@ export default function ClientForm({
         address: '',
         phone_number: formData.phone_number.trim()
       };
-      console.log('📋 Error: Clearing form but keeping phone:', newFormData);
+      console.log('Error: Clearing form but keeping phone:', newFormData);
       onFormDataChange(newFormData);
     } finally {
       setSearching(false);
@@ -144,18 +144,18 @@ export default function ClientForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('🚀 Form submission started');
-    console.log('📋 Form data before validation:', formData);
+    console.log('Form submission started');
+    console.log('Form data before validation:', formData);
     
     // Validate required fields
     if (!formData.cus_name?.trim()) {
-      console.log('❌ Validation failed: Missing customer name');
+      console.log('Validation failed: Missing customer name');
       onNotification('error', 'សូមបញ្ចូលឈ្មោះអតិថិជន');
       return;
     }
 
     if (!formData.phone_number?.trim()) {
-      console.log('❌ Validation failed: Missing phone number');
+      console.log('Validation failed: Missing phone number');
       onNotification('error', 'សូមបញ្ចូលលេខទូរសព្ទ');
       return;
     }
@@ -170,28 +170,28 @@ export default function ClientForm({
         phone_number: formData.phone_number.trim()
       };
 
-      console.log('📤 Sending client data to API:', clientData);
-      console.log('📤 JSON stringified:', JSON.stringify(clientData, null, 2));
+      console.log('Sending client data to API:', clientData);
+      console.log('JSON stringified:', JSON.stringify(clientData, null, 2));
 
       const response = await clientsApi.create(clientData);
-      console.log('✅ API response:', response);
+      console.log('API response:', response);
       
       if (response.code === 200) {
         onNotification('success', 'អតិថិជនត្រូវបានបង្កើតដោយជោគជ័យ');
         resetForm();
         onClientCreated();
       } else {
-        console.log('❌ API returned error:', response);
+        console.log('API returned error:', response);
         onNotification('error', response.message || 'មានបញ្ហាក្នុងការរក្សាទុកអតិថិជន');
       }
     } catch (error: any) {
-      console.error('❌ Error saving client:', error);
-      console.error('❌ Error details:', {
+      console.error('Error saving client:', error);
+      console.error('Error details:', {
         status: error.response?.status,
         data: error.response?.data,
         message: error.message
       });
-      console.error('❌ Client data that failed:', {
+      console.error('Client data that failed:', {
         original_formData: formData,
         processed_clientData: {
           cus_name: formData.cus_name,
@@ -210,13 +210,13 @@ export default function ClientForm({
   // Handle phone number input change
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const phoneValue = e.target.value;
-    console.log('📞 Phone number changed to:', phoneValue);
+    console.log('Phone number changed to:', phoneValue);
     
     const newFormData = {
       ...formData, 
       phone_number: phoneValue 
     };
-    console.log('📋 Updating formData to:', newFormData);
+    console.log('Updating formData to:', newFormData);
     onFormDataChange(newFormData);
   };
 
@@ -361,31 +361,17 @@ export default function ClientForm({
         </div>
 
         {/* Action Buttons - Pinned to bottom */}
-        <div className="flex space-x-3 pt-6 mt-auto">
-          {/* <Button
-            type="submit"
-            disabled={submitting || !formData.cus_name?.trim() || !formData.phone_number?.trim()}
-            loading={submitting}
-            icon={<Save className="h-4 w-4" />}
-            className="flex-1"
+        <div className="flex space-x-3 pt-6 mt-auto">          
+          <Button
+            type="button"
+            onClick={handleSearchClient}
+            loading={searching}
+            disabled={searching || !formData.phone_number?.trim()}
+            icon={<Search className="h-4 w-4" />}
+            className='flex-1'
           >
-            រក្សាទុក
-          </Button> */}
-          
-            <Button
-                type="button"
-                onClick={handleSearchClient}
-                loading={searching}
-                disabled={searching || !formData.phone_number?.trim()}
-                icon={<Search className="h-4 w-4" />}
-                className='flex-1'
-                // variant="secondary"
-                // size="sm"
-              >
-                ស្វែងរក
-              </Button>
-          
-          
+            ស្វែងរក
+          </Button>
 
           <Button
             type="button"

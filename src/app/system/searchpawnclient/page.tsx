@@ -16,7 +16,10 @@ import {
   ShoppingCart,
   MapPin,
   ArrowLeft,
-  Package
+  Package,
+  Hash,
+  UserCheck,
+  RefreshCw
 } from 'lucide-react';
 
 interface Client {
@@ -57,14 +60,26 @@ interface Notification {
   message: string;
 }
 
+interface SearchFilters {
+  cus_id: string;
+  cus_name: string;
+  phone_number: string;
+}
+
 export default function PawnPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientDetail, setClientDetail] = useState<ClientDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [showClientDetail, setShowClientDetail] = useState(false);
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+    cus_id: '',
+    cus_name: '',
+    phone_number: ''
+  });
+  const [isSearchMode, setIsSearchMode] = useState(false);
 
   useEffect(() => {
     loadClients();
@@ -100,6 +115,116 @@ export default function PawnPage() {
     }
   };
 
+  const handleSearch = async (filters: SearchFilters) => {
+    const hasActiveSearch = filters.cus_id.trim() || 
+                           filters.cus_name.trim() || 
+                           filters.phone_number.trim();
+
+    if (!hasActiveSearch) return;
+
+    try {
+      setSearchLoading(true);
+      setIsSearchMode(true);
+      
+      // Build search parameters with validation
+      const searchParams: any = {};
+      
+      if (filters.cus_id.trim()) {
+        const cusId = parseInt(filters.cus_id.trim());
+        if (!isNaN(cusId)) {
+          searchParams.cus_id = cusId;
+        }
+      }
+      
+      if (filters.cus_name.trim()) {
+        searchParams.cus_name = filters.cus_name.trim();
+      }
+      
+      if (filters.phone_number.trim()) {
+        searchParams.phone_number = filters.phone_number.trim();
+      }
+
+      const response = await pawnsApi.getClientPawnSearch(searchParams);
+      
+      if (response.code === 200) {
+        // Ensure we have a valid array result and filter out invalid entries
+        const results = Array.isArray(response.result) ? response.result : [];
+        
+        // Filter out entries where all fields are null/undefined/N/A
+        const validResults = results.filter(client => {
+          return client && (
+            (client.cus_id && client.cus_id !== 'N/A') ||
+            (client.cus_name && client.cus_name !== 'N/A') ||
+            (client.phone_number && client.phone_number !== 'N/A')
+          );
+        });
+        
+        setClients(validResults);
+        
+        if (validResults.length === 0) {
+          showNotification('error', 'មិនរកឃើញអតិថិជនដែលត្រូវគ្នាទេ');
+        }
+      } else {
+        setClients([]);
+        if (response.message) {
+          showNotification('error', response.message);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error searching clients:', error);
+      setClients([]);
+      showNotification('error', 'មានបញ្ហាក្នុងការស្វែងរក');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleFilterChange = (field: keyof SearchFilters, value: string) => {
+    setSearchFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const clearSearchFilter = (field: keyof SearchFilters) => {
+    setSearchFilters(prev => ({
+      ...prev,
+      [field]: ''
+    }));
+  };
+
+  const handleSearchClick = () => {
+    const hasActiveSearch = searchFilters.cus_id.trim() || 
+                           searchFilters.cus_name.trim() || 
+                           searchFilters.phone_number.trim();
+
+    if (hasActiveSearch) {
+      handleSearch(searchFilters);
+    } else {
+      showNotification('error', 'សូមបញ្ចូលលក្ខខណ្ឌស្វែងរកយ៉ាងតិច ១');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearchClick();
+    }
+  };
+
+  const clearAllFilters = () => {
+    setSearchFilters({
+      cus_id: '',
+      cus_name: '',
+      phone_number: ''
+    });
+    setIsSearchMode(false);
+    loadClients();
+  };
+
+  const getActiveSearchCount = () => {
+    return Object.values(searchFilters).filter(value => value.trim()).length;
+  };
+
   const loadClientDetail = async (clientId: number) => {
     try {
       setDetailLoading(true);
@@ -126,13 +251,6 @@ export default function PawnPage() {
     setShowClientDetail(false);
     setClientDetail(null);
   };
-
-  const filteredClients = clients.filter(client =>
-    (client.cus_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (client.phone_number || '').includes(searchTerm) ||
-    (client.cus_id?.toString() || '').includes(searchTerm) ||
-    (client.address?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-  );
 
   const calculatePawnTotal = (pawn: Pawn) => {
     return pawn.products.reduce((total, product) => {
@@ -162,19 +280,140 @@ export default function PawnPage() {
       {!showClientDetail ? (
         // Clients List View
         <div className="bg-white rounded-lg shadow">
-          {/* Search Bar */}
+          {/* Enhanced Search Section with 3 Boxes */}
           <div className="p-6 border-b border-gray-200">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
+            <div className="space-y-4">
+              {/* Search Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <Search className="h-5 w-5 mr-2 text-blue-600" />
+                  ស្វែងរកអតិថិជន
+                </h3>
               </div>
-              <input
-                type="text"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="ស្វែងរកអតិថិជនតាមឈ្មោះ, លេខទូរសព្ទ, ID, ឬអាសយដ្ឋាន..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+
+              {/* Three Search Boxes */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Customer ID Search */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <Hash className="h-4 w-4 inline mr-1" />
+                    លេខ ID អតិថិជន
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="បញ្ចូល ID..."
+                      value={searchFilters.cus_id}
+                      onChange={(e) => handleFilterChange('cus_id', e.target.value)}
+                      onKeyPress={handleKeyPress}
+                    />
+                    {searchFilters.cus_id && (
+                      <button
+                        onClick={() => clearSearchFilter('cus_id')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Customer Name Search */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <UserCheck className="h-4 w-4 inline mr-1" />
+                    ឈ្មោះអតិថិជន
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="បញ្ចូលឈ្មោះ..."
+                      value={searchFilters.cus_name}
+                      onChange={(e) => handleFilterChange('cus_name', e.target.value)}
+                      onKeyPress={handleKeyPress}
+                    />
+                    {searchFilters.cus_name && (
+                      <button
+                        onClick={() => clearSearchFilter('cus_name')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Phone Number Search */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <Phone className="h-4 w-4 inline mr-1" />
+                    លេខទូរសព្ទ
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="បញ្ចូលលេខទូរសព្ទ..."
+                      value={searchFilters.phone_number}
+                      onChange={(e) => handleFilterChange('phone_number', e.target.value)}
+                      onKeyPress={handleKeyPress}
+                    />
+                    {searchFilters.phone_number && (
+                      <button
+                        onClick={() => clearSearchFilter('phone_number')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSearchClick}
+                  disabled={searchLoading}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {searchLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4 mr-2" />
+                  )}
+                  ស្វែងរក
+                </button>
+                
+                <button
+                  onClick={clearAllFilters}
+                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  ត្រឡប់
+                </button>
+              </div>
+
+              {/* Search Status */}
+              {isSearchMode && (
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    {searchLoading ? (
+                      <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4 text-blue-600" />
+                    )}
+                    <span className="text-sm text-blue-800">
+                      {searchLoading ? 'កំពុងស្វែងរក...' : `ស្វែងរកដោយ ${getActiveSearchCount()} លក្ខខណ្ឌ`}
+                    </span>
+                  </div>
+                  <span className="text-sm text-blue-600 font-medium">
+                    រកឃើញ {clients.length} លទ្ធផល
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -187,12 +426,27 @@ export default function PawnPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredClients.length === 0 ? (
+                {clients.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                       <User className="h-8 w-8 text-gray-400" />
                     </div>
-                    <p className="text-gray-500 text-lg">មិនមានអតិថិជនទេ</p>
+                    <p className="text-gray-500 text-lg">
+                      {isSearchMode ? 'មិនរកឃើញអតិថិជនទេ' : 'មិនមានអតិថិជនទេ'}
+                    </p>
+                    {isSearchMode && (
+                      <div className="mt-4 space-y-2">
+                        <p className="text-gray-400 text-sm">
+                          សាកល្បងប្រើលក្ខខណ្ឌស្វែងរកផ្សេងទៀត
+                        </p>
+                        <button
+                          onClick={clearAllFilters}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          សម្អាតការស្វែងរកនិងបង្ហាញអតិថិជនទាំងអស់
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="overflow-hidden">
@@ -211,9 +465,9 @@ export default function PawnPage() {
 
                     {/* Table Body */}
                     <div className="divide-y divide-gray-200 border-l border-r border-b border-gray-200 rounded-b-lg">
-                      {filteredClients.map((client, index) => (
+                      {clients.map((client, index) => (
                         <div 
-                          key={client.cus_id} 
+                          key={`client-${client.cus_id}-${index}`} 
                           className={`${
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                           } hover:bg-blue-50 transition-colors duration-200`}
@@ -222,32 +476,52 @@ export default function PawnPage() {
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1">
                               {/* ID */}
                               <div className="min-w-0">
-                                <span className="text-sm font-mono text-gray-900">{client.cus_id}</span>
+                                <span className={`text-sm font-mono ${
+                                  searchFilters.cus_id && client.cus_id && client.cus_id.toString().includes(searchFilters.cus_id)
+                                    ? 'bg-yellow-200 text-gray-900 px-1 rounded'
+                                    : 'text-gray-900'
+                                }`}>
+                                  {client.cus_id && client.cus_id !== 'N/A' ? client.cus_id : '-'}
+                                </span>
                               </div>
 
                               {/* Name */}
                               <div className="min-w-0">
-                                <span className="text-sm font-medium text-gray-900 truncate block">{client.cus_name}</span>
+                                <span className={`text-sm font-medium truncate block ${
+                                  searchFilters.cus_name && client.cus_name && client.cus_name.toLowerCase().includes(searchFilters.cus_name.toLowerCase())
+                                    ? 'bg-yellow-200 text-gray-900 px-1 rounded'
+                                    : 'text-gray-900'
+                                }`}>
+                                  {client.cus_name && client.cus_name !== 'N/A' ? client.cus_name : '-'}
+                                </span>
                               </div>
 
                               {/* Phone Number */}
                               <div className="min-w-0">
-                                <a href={`tel:${client.phone_number}`} className="text-sm text-gray-600 hover:text-blue-600 hover:underline truncate block">
-                                  {client.phone_number}
-                                </a>
+                                {client.phone_number && client.phone_number !== 'N/A' ? (
+                                  <a href={`tel:${client.phone_number}`} className={`text-sm hover:underline truncate block ${
+                                    searchFilters.phone_number && client.phone_number && client.phone_number.includes(searchFilters.phone_number)
+                                      ? 'bg-yellow-200 text-gray-900 px-1 rounded'
+                                      : 'text-gray-600 hover:text-blue-600'
+                                  }`}>
+                                    {client.phone_number}
+                                  </a>
+                                ) : (
+                                  <span className="text-sm text-gray-400">-</span>
+                                )}
                               </div>
 
                               {/* Address */}
                               <div className="min-w-0">
                                 <span className="text-sm text-gray-600 truncate block" title={client.address}>
-                                  {client.address}
+                                  {client.address && client.address !== 'N/A' ? client.address : '-'}
                                 </span>
                               </div>
                             </div>
                             
                             <button
                               onClick={() => handleViewMore(client)}
-                              disabled={detailLoading}
+                              disabled={detailLoading || !client.cus_id || client.cus_id === 'N/A'}
                               className="w-20 ml-4 inline-flex items-center justify-center px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
                             >
                               {detailLoading ? (
@@ -267,7 +541,7 @@ export default function PawnPage() {
           </div>
         </div>
       ) : (
-        // Client Detail View
+        // Client Detail View (unchanged)
         <div className="space-y-6">
           {detailLoading ? (
             <div className="bg-white rounded-lg shadow p-6">
@@ -369,7 +643,6 @@ export default function PawnPage() {
                             <div className="text-right">
                               <p className="text-xs text-gray-500 mb-1">ប្រាក់កក់</p>
                               <p className="text-xl font-bold text-blue-600">${pawn.pawn_deposit}</p>
-                              {/* <p className="text-xs text-gray-500 mt-1">សរុបតម្លៃ: ${calculatePawnTotal(pawn)}</p> */}
                             </div>
                           </div>
 
