@@ -70,6 +70,12 @@ export default function OrderForm({
     order_product_detail: []
   });
 
+  const getNextOrderId = (orders: any[]): number => {
+    if (orders.length === 0) return 1;
+    const maxId = Math.max(...orders.map(order => order.order_id));
+    return maxId + 1;
+  };
+
   const removeProductFromOrder = (index: number) => {
     setOrderData(prev => ({
       ...prev,
@@ -170,7 +176,27 @@ export default function OrderForm({
       <form onSubmit={handleOrderSubmit} className="flex-1 flex flex-col">
         <div className="space-y-4 flex-1 overflow-y-auto max-h-96">
           {/* Order Details */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div >
+              <label className='block text-sm font-medium mb-2'>លេខវិក្កយបត្រ: </label>
+              <div 
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ 
+                  backgroundColor: colors.secondary[100],
+                  borderColor: colors.secondary[300],
+                  color: colors.secondary[600]
+                }}
+              >
+                {foundClient ? (
+                  `រកឃើញ: ${foundClient.cus_id}`
+                ) : (
+                  'hello world'
+                  // =============================================================================
+                  // repace this with the get next order id 
+                  // =============================================================================
+                )}
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: colors.secondary[700] }}>
                 កាលបរិច្ចេទបញ្ជាទិញ
@@ -205,7 +231,7 @@ export default function OrderForm({
 
           {/* Products Section */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            {/* <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold" style={{ color: colors.secondary[800] }}>
                 បញ្ជីផលិតផល
               </h3>
@@ -218,7 +244,7 @@ export default function OrderForm({
               >
                 បន្ថែមផលិតផល
               </Button>
-            </div>
+            </div> */}
 
             {!formData.phone_number.trim() ? (
               <div 
@@ -231,133 +257,168 @@ export default function OrderForm({
                 </p>
               </div>
             ) : orderData.order_product_detail && orderData.order_product_detail.length > 0 ? (
-              <div className="space-y-3">
-                {orderData.order_product_detail.map((product, index) => (
-                  <div 
-                    key={index}
-                    className="p-4 border rounded-lg"
-                    style={{ borderColor: colors.secondary[200], backgroundColor: colors.secondary[25] }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium" style={{ color: colors.secondary[700] }}>
-                        ផលិតផលទី {index + 1}
-                      </h4>
-                      <div className='flex items-center space-x-2'>
-                        <span className='text-sm font-medium' style={{ color: colors.primary[600] }}>
-                          សរុប: ${[((product.order_amount * product.product_sell_price) + product.product_labor_cost).toFixed(2)]}
-                        </span>
-                        <Button
-                          type="button"
-                          onClick={() => removeProductFromOrder(index)}
-                          icon={<Minus className="h-4 w-4" />}
-                          variant="secondary"
-                          size="sm"
-                        >
-                          លុប
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium mb-1" style={{ color: colors.secondary[600] }}>
-                          ផលិតផល
-                        </label>
-                        <select
-                          value={product.prod_id}
-                          onChange={(e) => {
-                            const selectedProduct = products.find(p => p.id === parseInt(e.target.value));
-                            updateOrderProduct(index, 'prod_id', parseInt(e.target.value));
-                            updateOrderProduct(index, 'prod_name', selectedProduct?.name || '');
-                          }}
-                          className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          style={{ borderColor: colors.secondary[300] }}
-                        >
-                          <option value={0}>ជ្រើសរើសផលិតផល</option>
-                          {products.map(prod => (
-                            <option key={prod.id} value={prod.id}>{prod.name}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium mb-1" style={{ color: colors.secondary[600] }}>
-                          ទម្ងន់
-                        </label>
-                        <input
-                          type="text"
-                          value={product.order_weight}
-                          onChange={(e) => updateOrderProduct(index, 'order_weight', e.target.value)}
-                          className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          style={{ borderColor: colors.secondary[300] }}
-                          placeholder="ទម្ងន់"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium mb-1" style={{ color: colors.secondary[600] }}>
-                          ចំនួន
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={product.order_amount}
-                          onChange={(e) => updateOrderProduct(index, 'order_amount', parseInt(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          style={{ borderColor: colors.secondary[300] }}
-                          placeholder="ចំនួន"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium mb-1" style={{ color: colors.secondary[600] }}>
-                          តម្លៃលក់
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={product.product_sell_price}
-                          onChange={(e) => updateOrderProduct(index, 'product_sell_price', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          style={{ borderColor: colors.secondary[300] }}
-                          placeholder="តម្លៃលក់"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium mb-1" style={{ color: colors.secondary[600] }}>
-                          ថ្លៃកម្រធ្វើ
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={product.product_labor_cost}
-                          onChange={(e) => updateOrderProduct(index, 'product_labor_cost', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          style={{ borderColor: colors.secondary[300] }}
-                          placeholder="ថ្លៃកម្រធ្វើ"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium mb-1" style={{ color: colors.secondary[600] }}>
-                          តម្លៃទិញ
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={product.product_buy_price}
-                          onChange={(e) => updateOrderProduct(index, 'product_buy_price', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          style={{ borderColor: colors.secondary[300] }}
-                          placeholder="តម្លៃទិញ"
-                        />
-                      </div>
+              <div className="space-y-4">
+                {/* Table Header */}
+                <div className="bg-gray-50 border border-gray-200 rounded-t-lg">
+                  <div className="px-4 py-3">
+                    <h3 className="text-lg font-semibold text-gray-900">បញ្ជីផលិតផល</h3>
+                  </div>
+                  
+                  {/* Excel-style Header Row */}
+                  <div className="border-t border-gray-200 bg-gray-100">
+                    <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm font-medium text-gray-700">
+                      <div className="col-span-1 text-center">#</div>
+                      <div className="col-span-2">ផលិតផល</div>
+                      <div className="col-span-1 text-center">ទម្ងន់</div>
+                      <div className="col-span-1 text-center">ចំនួន</div>
+                      <div className="col-span-2 text-center">តម្លៃលក់</div>
+                      <div className="col-span-2 text-center">ថ្លៃកម្រធ្វើ</div>
+                      <div className="col-span-2 text-center">តម្លៃទិញ</div>
+                      <div className="col-span-1 text-center">សកម្មភាព</div>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Table Body */}
+                <div className="border border-gray-200 border-t-0 rounded-b-lg overflow-hidden">
+                  {orderData.order_product_detail.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      <Package className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                      <p>មិនមានផលិតផលទេ</p>
+                      <p className="text-sm">ចុចលើ "បន្ថែមផលិតផល" ដើម្បីចាប់ផ្តើម</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-200">
+                      {orderData.order_product_detail.map((product, index) => (
+                        <div 
+                          key={index}
+                          className={`grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+                          }`}
+                        >
+                          {/* Row Number */}
+                          <div className="col-span-1 text-center">
+                            <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                              {index + 1}
+                            </span>
+                          </div>
+
+                          {/* Product Selection */}
+                          <div className="col-span-2">
+                            <select
+                              value={product.prod_id}
+                              onChange={(e) => {
+                                const selectedProduct = products.find(p => p.id === parseInt(e.target.value));
+                                updateOrderProduct(index, 'prod_id', parseInt(e.target.value));
+                                updateOrderProduct(index, 'prod_name', selectedProduct?.name || '');
+                              }}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value={0}>ជ្រើសរើសផលិតផល</option>
+                              {products.map(prod => (
+                                <option key={prod.id} value={prod.id}>{prod.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Weight */}
+                          <div className="col-span-1">
+                            <input
+                              type="text"
+                              value={product.order_weight}
+                              onChange={(e) => updateOrderProduct(index, 'order_weight', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
+                              placeholder="ទម្ងន់"
+                            />
+                          </div>
+
+                          {/* Amount */}
+                          <div className="col-span-1">
+                            <input
+                              type="number"
+                              min="1"
+                              value={product.order_amount}
+                              onChange={(e) => updateOrderProduct(index, 'order_amount', parseInt(e.target.value) || 0)}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
+                              placeholder="ចំនួន"
+                            />
+                          </div>
+
+                          {/* Sell Price */}
+                          <div className="col-span-2">
+                            <div className="relative">
+                              <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={product.product_sell_price}
+                                onChange={(e) => updateOrderProduct(index, 'product_sell_price', parseFloat(e.target.value) || 0)}
+                                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Labor Cost */}
+                          <div className="col-span-2">
+                            <div className="relative">
+                              <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={product.product_labor_cost}
+                                onChange={(e) => updateOrderProduct(index, 'product_labor_cost', parseFloat(e.target.value) || 0)}
+                                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Buy Price */}
+                          <div className="col-span-2">
+                            <div className="relative">
+                              <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={product.product_buy_price}
+                                onChange={(e) => updateOrderProduct(index, 'product_buy_price', parseFloat(e.target.value) || 0)}
+                                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="col-span-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => removeProductFromOrder(index)}
+                              className="inline-flex items-center justify-center w-8 h-8 bg-red-100 text-red-600 rounded-full hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+                              title="លុបផលិតផល"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Add Product Button */}
+                <div className="flex justify-center pt-4">
+                  <button
+                    type="button"
+                    onClick={addProductToOrder}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    បន្ថែមផលិតផល
+                  </button>
+                </div>
               </div>
             ) : (
               <div 
@@ -374,19 +435,60 @@ export default function OrderForm({
               </div>
             )}
           </div>
-        </div>
+        </div>  
 
-        {/* Submit Button */}
-        <div className="flex justify-end pt-4 mt-auto border-t" style={{ borderTopColor: colors.secondary[200] }}>
-          <Button
-            type="submit"
-            disabled={submittingOrder || !formData.phone_number.trim()}
-            loading={submittingOrder}
-            icon={<ShoppingCart className="h-4 w-4" />}
-            className="px-6"
-          >
-            បង្កើតការបញ្ជាទិញ
-          </Button>
+
+          {/* Submit Button */}
+          <div className="pt-4 mt-auto border-t" style={{ borderTopColor: colors.secondary[200] }}>
+          {/* Summary Section */}
+          {orderData.order_product_detail && orderData.order_product_detail.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-6">
+                  <div className="text-center">
+                    <span className="text-sm font-medium text-gray-600">សរុបផលិតផល: </span>
+                    <span className="text-lg font-bold text-black-600">
+                    {orderData.order_product_detail.length} ប្រភេទ
+                    </span>
+                  </div>
+                  
+                  <div className="text-center">
+                    <span className="text-sm font-medium text-gray-600">សរុបតម្លៃ: </span>
+                    <span className="text-lg font-bold text-black-600">
+                    ${orderData.order_product_detail.reduce((total, product) => 
+                      total + ((product.order_amount * product.product_sell_price) + product.product_labor_cost), 0
+                    ).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={submittingOrder || !formData.phone_number.trim()}
+                  loading={submittingOrder}
+                  icon={<ShoppingCart className="h-4 w-4" />}
+                  className="px-6"
+                >
+                  បង្កើតការបញ្ជាទិញ
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Submit button when no products */}
+          {(!orderData.order_product_detail || orderData.order_product_detail.length === 0) && (
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                disabled={submittingOrder || !formData.phone_number.trim()}
+                loading={submittingOrder}
+                icon={<ShoppingCart className="h-4 w-4" />}
+                className="px-6"
+              >
+                បង្កើតការបញ្ជាទិញ
+              </Button>
+            </div>
+          )}
         </div>
       </form>
     </Card>

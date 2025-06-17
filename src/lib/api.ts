@@ -98,10 +98,15 @@ export const productsApi = {
     return response.data;
   },
   
-  search: async (searchTerm: string): Promise<ApiResponse> => {
-    const response = await apiClient.get(`/api/product/search/${searchTerm}`);
+  getClientOrderSearch: async (params: { phone_number?: string; cus_name?: string; cus_id?: number }): Promise<ApiResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
+    if (params.cus_name) searchParams.append('cus_name', params.cus_name);
+    if (params.phone_number) searchParams.append('phone_number', params.phone_number);
+
+    const response = await apiClient.get(`/api/order/search?${searchParams.toString()}`);
     return response.data;
-  },
+  }
   
   // getNextId: async (): Promise<ApiResponse> => {
   //   const response = await apiClient.get('/api/product/next-id');
