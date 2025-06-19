@@ -561,7 +561,7 @@ export default function OrderForm({
                 </div>
 
                 <div className='flex justify-end p-6 gap-4'>
-                  <Button
+                  {/* <Button
                     type="button"
                     onClick={resetOrderForm}
                     icon={<RotateCcw className="h-4 w-4" />}
@@ -570,7 +570,7 @@ export default function OrderForm({
                     className="px-6"
                   >
                     សម្អាត
-                  </Button>
+                  </Button> */}
                 
                   <Button
                     type="submit"
@@ -589,7 +589,7 @@ export default function OrderForm({
           {/* Submit button when no products */}
           {(!orderData.order_product_detail || orderData.order_product_detail.length === 0) && (
             <div className="flex justify-end p-6 gap-4">
-              <Button
+              {/* <Button
                 type="button"
                 onClick={resetOrderForm}
                 icon={<RotateCcw className="h-4 w-4" />}
@@ -598,7 +598,7 @@ export default function OrderForm({
                 className="px-6"
               >
                 សម្អាត
-              </Button>
+              </Button> */} 
 
               <Button
                 type="submit"
