@@ -1,7 +1,7 @@
 // pawn/PawnForm.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { pawnsApi } from '@/lib/api';
 import { 
   Plus,
@@ -65,6 +65,8 @@ export default function PawnForm({
   foundClient
 }: PawnFormProps) {
   const [submittingPawn, setSubmittingPawn] = useState(false);
+  const [nextPawnId, setNextPawnId] = useState<number | null>(null);
+  const [loadingNextId, setLoadingNextId] = useState(false);
   const [pawnData, setPawnData] = useState<PawnData>({
     pawn_date: new Date().toISOString().split('T')[0],
     pawn_expire_date: (() => {
@@ -75,6 +77,37 @@ export default function PawnForm({
     pawn_deposit: 0,
     pawn_product_detail: []
   });
+
+  // Fetch next pawn ID when component mounts or when a pawn is created
+  const fetchNextPawnId = async () => {
+    setLoadingNextId(true);
+    try {
+      // Use the new dedicated API endpoint to get next pawn ID
+      const response = await pawnsApi.getNextPawnId();
+      
+      console.log('🔍 Next Pawn ID API Response:', response);
+      
+      if (response.code === 200 && response.result) {
+        const nextId = response.result.next_pawn_id;
+        console.log('🔍 Next Pawn ID:', nextId);
+        setNextPawnId(nextId);
+      } else {
+        console.log('🔍 Failed to get next pawn ID, starting with 1');
+        setNextPawnId(1);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching next pawn ID:', error);
+      // Fallback to a default value or handle error
+      setNextPawnId(1);
+    } finally {
+      setLoadingNextId(false);
+    }
+  };
+
+  // Fetch next pawn ID when component mounts
+  useEffect(() => {
+    fetchNextPawnId();
+  }, []);
 
   const removeProductFromPawn = (index: number) => {
     setPawnData(prev => ({
@@ -119,6 +152,8 @@ export default function PawnForm({
       pawn_deposit: 0,
       pawn_product_detail: []
     });
+    // Fetch next pawn ID after reset
+    fetchNextPawnId();
   };
 
   const calculateTotalValue = () => {
@@ -156,7 +191,7 @@ export default function PawnForm({
 
     try {
       const pawnPayload = {
-        pawn_id: 0,
+        pawn_id: nextPawnId || 0, // Use the fetched next pawn ID
         cus_id: customerId,
         cus_name: customerName || '',
         address: customerAddress || '',
@@ -166,6 +201,8 @@ export default function PawnForm({
         pawn_deposit: pawnData.pawn_deposit || 0,
         pawn_product_detail: pawnData.pawn_product_detail
       };
+
+      console.log('📤 Sending pawn payload:', pawnPayload);
 
       const response = await pawnsApi.create(pawnPayload);
       
@@ -191,7 +228,7 @@ export default function PawnForm({
         <div className="space-y-4 flex-1 overflow-y-auto max-h-96">
           {/* Pawn Details */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div >
+            <div>
               <label className='block text-sm font-medium mb-2'>លេខវិក្កយបត្រ: </label>
               <div 
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -203,11 +240,10 @@ export default function PawnForm({
               >
                 {foundClient ? (
                   `រកឃើញ: ${foundClient.cus_id}`
+                ) : loadingNextId ? (
+                  'កំពុងផ្ទុក...'
                 ) : (
-                  'hello world'
-                  // =============================================================================
-                  // repace this with the get next pawn id
-                  // =============================================================================
+                  `${nextPawnId || 'N/A'}`
                 )}
               </div>
             </div>
@@ -386,6 +422,20 @@ export default function PawnForm({
                     </div>
                   </div>
                 ))}
+
+                {/* Summary Section */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-4">
+                      <span className="font-medium text-gray-600">
+                        សរុបផលិតផល: <span className="text-blue-600 font-bold">{pawnData.pawn_product_detail.length} ប្រភេទ</span>
+                      </span>
+                      <span className="font-medium text-gray-600">
+                        តម្លៃសរុប: <span className="text-green-600 font-bold">${calculateTotalValue().toFixed(2)}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div 
@@ -408,7 +458,7 @@ export default function PawnForm({
         <div className="flex justify-end pt-4 mt-auto border-t" style={{ borderTopColor: colors.secondary[200] }}>
           <Button
             type="submit"
-            disabled={submittingPawn || !formData.phone_number.trim()}
+            disabled={submittingPawn || !formData.phone_number.trim() || loadingNextId}
             loading={submittingPawn}
             icon={<Package className="h-4 w-4" />}
             className="px-6"

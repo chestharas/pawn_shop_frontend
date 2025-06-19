@@ -1,14 +1,15 @@
 // buyandsell/OrderForm.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ordersApi } from '@/lib/api';
 import { 
   Plus,
   Minus,
   ShoppingCart,
   Package,
-  Phone
+  Phone,
+  RotateCcw
 } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/Button';
@@ -64,17 +65,46 @@ export default function OrderForm({
   foundClient
 }: OrderFormProps) {
   const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [nextOrderId, setNextOrderId] = useState<number | null>(null);
+  const [loadingNextId, setLoadingNextId] = useState(false);
   const [orderData, setOrderData] = useState<OrderData>({
     order_date: new Date().toISOString().split('T')[0],
     order_deposit: 0,
     order_product_detail: []
   });
 
-  const getNextOrderId = (orders: any[]): number => {
-    if (orders.length === 0) return 1;
-    const maxId = Math.max(...orders.map(order => order.order_id));
-    return maxId + 1;
+  // State and data management
+
+  // Fetch next order ID when component mounts or when an order is created
+  const fetchNextOrderId = async () => {
+    setLoadingNextId(true);
+    try {
+      // Use the new dedicated API endpoint to get next order ID
+      const response = await ordersApi.getNextOrderId();
+      
+      console.log('Next Order ID API Response:', response);
+      
+      if (response.code === 200 && response.result) {
+        const nextId = response.result.next_order_id;
+        console.log('Next Order ID:', nextId);
+        setNextOrderId(nextId);
+      } else {
+        console.log('Failed to get next order ID, starting with 1');
+        setNextOrderId(1);
+      }
+    } catch (error) {
+      console.error('Error fetching next order ID:', error);
+      // Fallback to a default value or handle error
+      setNextOrderId(1);
+    } finally {
+      setLoadingNextId(false);
+    }
   };
+
+  // Fetch next order ID when component mounts
+  useEffect(() => {
+    fetchNextOrderId();
+  }, []);
 
   const removeProductFromOrder = (index: number) => {
     setOrderData(prev => ({
@@ -116,6 +146,8 @@ export default function OrderForm({
       order_deposit: 0,
       order_product_detail: []
     });
+    // Fetch next order ID after reset
+    fetchNextOrderId();
   };
 
   const handleOrderSubmit = async (e: React.FormEvent) => {
@@ -141,23 +173,23 @@ export default function OrderForm({
 
     try {
       const orderPayload = {
-        order_id: 0,
+        order_id: nextOrderId || 0, // Use the fetched next order ID
         cus_id: customerId,
         cus_name: customerName,
         address: customerAddress,
-        phone_number: customerPhone, // Ensure this is always present
+        phone_number: customerPhone,
         order_date: orderData.order_date,
         order_deposit: orderData.order_deposit || 0,
         order_product_detail: orderData.order_product_detail
       };
 
-      console.log('📤 Sending order payload:', orderPayload); // Debug log
+      console.log('📤 Sending order payload:', orderPayload);
 
       const response = await ordersApi.create(orderPayload);
       
       if (response.code === 200) {
         onNotification('success', 'ការបញ្ជាទិញត្រូវបានបង្កើតដោយជោគជ័យ');
-        resetOrderForm();
+        // resetOrderForm();
         onOrderCreated();
       } else {
         onNotification('error', response.message || 'មានបញ្ហាក្នុងការបង្កើតការបញ្ជាទិញ');
@@ -177,7 +209,7 @@ export default function OrderForm({
         <div className="space-y-4 flex-1 overflow-y-auto max-h-96">
           {/* Order Details */}
           <div className="grid grid-cols-3 gap-4">
-            <div >
+            <div>
               <label className='block text-sm font-medium mb-2'>លេខវិក្កយបត្រ: </label>
               <div 
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -189,11 +221,10 @@ export default function OrderForm({
               >
                 {foundClient ? (
                   `រកឃើញ: ${foundClient.cus_id}`
+                ) : loadingNextId ? (
+                  'កំពុងផ្ទុក...'
                 ) : (
-                  'hello world'
-                  // =============================================================================
-                  // repace this with the get next order id 
-                  // =============================================================================
+                  `${nextOrderId || 'N/A'}`
                 )}
               </div>
             </div>
@@ -228,10 +259,10 @@ export default function OrderForm({
               />
             </div>
           </div>
+          
 
           {/* Products Section */}
-          <div>
-            {/* <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold" style={{ color: colors.secondary[800] }}>
                 បញ្ជីផលិតផល
               </h3>
@@ -244,8 +275,8 @@ export default function OrderForm({
               >
                 បន្ថែមផលិតផល
               </Button>
-            </div> */}
-
+            </div>
+          <div>
             {!formData.phone_number.trim() ? (
               <div 
                 className="p-8 text-center border-2 border-dashed rounded-lg"
@@ -437,9 +468,8 @@ export default function OrderForm({
           </div>
         </div>  
 
-
-          {/* Submit Button */}
-          <div className="pt-4 mt-auto border-t" style={{ borderTopColor: colors.secondary[200] }}>
+        {/* Submit Button */}
+        <div className="pt-4 mt-auto border-t" style={{ borderTopColor: colors.secondary[200] }}>
           {/* Summary Section */}
           {orderData.order_product_detail && orderData.order_product_detail.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
@@ -448,39 +478,67 @@ export default function OrderForm({
                   <div className="text-center">
                     <span className="text-sm font-medium text-gray-600">សរុបផលិតផល: </span>
                     <span className="text-lg font-bold text-black-600">
-                    {orderData.order_product_detail.length} ប្រភេទ
+                      {orderData.order_product_detail.length} ប្រភេទ
                     </span>
                   </div>
                   
                   <div className="text-center">
                     <span className="text-sm font-medium text-gray-600">សរុបតម្លៃ: </span>
                     <span className="text-lg font-bold text-black-600">
-                    ${orderData.order_product_detail.reduce((total, product) => 
-                      total + ((product.order_amount * product.product_sell_price) + product.product_labor_cost), 0
-                    ).toFixed(2)}
+                      ${orderData.order_product_detail.reduce((total, product) => 
+                        total + ((product.order_amount * product.product_sell_price) + product.product_labor_cost), 0
+                      ).toFixed(2)}
                     </span>
                   </div>
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={submittingOrder || !formData.phone_number.trim()}
-                  loading={submittingOrder}
-                  icon={<ShoppingCart className="h-4 w-4" />}
-                  className="px-6"
-                >
-                  បង្កើតការបញ្ជាទិញ
-                </Button>
+                <div className='flex justify-end p-6 gap-4'>
+                    <Button
+                      // type="button"
+                      onClick={resetOrderForm}
+                      icon={<RotateCcw className="h-4 w-4" />}
+                      size="sm"
+                      disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
+                      type="submit"
+    
+                      className="px-6"
+                    >
+                      សម្អាត
+                    </Button>
+                  
+                    <Button
+                    type="submit"
+                    disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
+                    loading={submittingOrder}
+                    icon={<ShoppingCart className="h-4 w-4" />}
+                    className="px-6"
+                  >
+                    បង្កើតការបញ្ជាទិញ
+                  </Button>
+                </div>
               </div>
             </div>
           )}
 
           {/* Submit button when no products */}
           {(!orderData.order_product_detail || orderData.order_product_detail.length === 0) && (
-            <div className="flex justify-end">
+            <div className="flex justify-end p-6 gap-4">
+              <Button
+                type="button"
+                onClick={resetOrderForm}
+                icon={<RotateCcw className="h-4 w-4" />}
+                size="sm"
+                disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
+                // type="submit"
+
+                className="px-6"
+              >
+                សម្អាត
+              </Button>
+
               <Button
                 type="submit"
-                disabled={submittingOrder || !formData.phone_number.trim()}
+                disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
                 loading={submittingOrder}
                 icon={<ShoppingCart className="h-4 w-4" />}
                 className="px-6"

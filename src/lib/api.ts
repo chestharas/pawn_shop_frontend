@@ -179,7 +179,12 @@ export const ordersApi = {
 
     const response = await apiClient.get(`/api/order/search?${searchParams.toString()}`);
     return response.data;
-  }
+  },
+
+  getNextOrderId: async (): Promise<ApiResponse> => {
+    const response = await apiClient.get('/api/order/next-id');
+    return response.data;
+  },
 };
 
 // Pawns API - Based on your Swagger "/api/pawn"
@@ -212,7 +217,12 @@ export const pawnsApi = {
 
     const response = await apiClient.get(`/api/pawn/search?${searchParams.toString()}`);
     return response.data;
-  }
+  },
+
+  getNextPawnId: async (): Promise<ApiResponse> => {
+    const response = await apiClient.get('/api/pawn/next-id');
+    return response.data;
+  },
 };
 
 export default apiClient;

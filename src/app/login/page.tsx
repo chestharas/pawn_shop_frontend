@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { Eye, EyeOff, Lock, Phone } from 'lucide-react';
+import { Eye, EyeOff, Phone, Lock } from 'lucide-react';
 import { config } from '@/lib/config';
 
 export default function LoginPage() {
@@ -17,8 +17,11 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated) router.push('/system');
-  }, [isAuthenticated, router]);
+    if (isAuthenticated) {
+      // Use window.location instead of router to avoid DOM conflicts
+      window.location.href = '/system';
+    }
+  }, [isAuthenticated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +39,7 @@ export default function LoginPage() {
 
     try {
       await login(phone, pass);
+      // Don't redirect here - let useEffect handle it
     } catch (err: any) {
       setError(err?.message || 'Failed to login.');
     } finally {
@@ -44,89 +48,97 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md bg-white p-8 shadow-lg rounded-lg space-y-6">
-        <div className="flex flex-col items-center">
-          <div className="h-12 w-12 flex items-center justify-center rounded-full bg-blue-600">
-            <Lock className="h-6 w-6 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-500 rounded-2xl mb-4">
+            <Lock className="w-7 h-7 text-white" />
           </div>
-          <h2 className="mt-4 text-2xl font-bold text-gray-900">Sign in</h2>
-          <p className="text-sm text-gray-500">{config.appName}</p>
+          <h1 className="text-2xl font-semibold text-slate-900 mb-1">Welcome back</h1>
+          <p className="text-slate-500 text-sm">{config.appName}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label htmlFor="phone_number" className="sr-only">
-              Phone Number
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Phone Input */}
+          <div className="space-y-1">
+            <label htmlFor="phone" className="text-sm font-medium text-slate-700">
+              Phone number
             </label>
             <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
-                id="phone_number"
-                name="phone_number"
+                id="phone"
                 type="tel"
                 autoComplete="tel"
                 required
-                aria-label="Phone number"
-                className="pl-10 w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring focus:ring-blue-500"
-                placeholder="Phone Number"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                placeholder="Enter your phone number"
               />
             </div>
           </div>
 
-          <div>
-            <label htmlFor="password" className="sr-only">
+          {/* Password Input */}
+          <div className="space-y-1">
+            <label htmlFor="password" className="text-sm font-medium text-slate-700">
               Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 id="password"
-                name="password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 required
-                aria-label="Password"
-                className="pl-10 pr-10 w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring focus:ring-blue-500"
-                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                placeholder="Enter your password"
               />
               <button
                 type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                aria-label="Toggle password visibility"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
               >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
               </button>
             </div>
           </div>
 
+          {/* Error Message */}
           {error && (
-            <div className="bg-red-100 text-red-700 text-sm p-3 rounded">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
               {error}
             </div>
           )}
 
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2 px-4 text-white bg-blue-600 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-slate-400 text-white font-medium py-3 px-4 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             {isLoading ? (
-              <div className="animate-spin h-4 w-4 border-b-2 border-white mx-auto rounded-full" />
+              <div className="flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              </div>
             ) : (
               'Sign in'
             )}
           </button>
-
-          <p className="text-xs text-center text-gray-500">
-            Enter your phone number and password to access the system
-          </p>
         </form>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-slate-500 mt-6">
+          Secure access to your account
+        </p>
       </div>
     </div>
   );
