@@ -483,4 +483,4 @@ export default function LastOrders({
       </div>
     </Card>
   );
-}
+}   
