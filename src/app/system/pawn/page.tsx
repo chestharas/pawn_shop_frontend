@@ -2,13 +2,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { clientsApi, productsApi } from '@/lib/api';
+import { clientsApi, productsApi, pawnsApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
 
 // Import local components from the same folder
 import ClientForm from './ClientForm';
 import PawnForm from './PawnForm';
 import Notification from './Notification';
+import LastPawn from '@/components/ui/LastPawn';
 
 // Client interface based on API response
 interface Client {
@@ -34,11 +35,61 @@ interface NotificationState {
   message: string;
 }
 
+// Real API interfaces based on your actual response
+interface PawnProduct {
+  prod_name: string;
+  prod_id: number;
+  pawn_weight: string;
+  pawn_amount: number;
+  pawn_unit_price: number;
+  subtotal: number;
+}
+
+interface PawnInfo {
+  pawn_id: number;
+  pawn_date: string;
+  pawn_expire_date: string;
+  pawn_deposit: number;
+  total_amount: number;
+  remaining_balance: number;
+}
+
+interface PawnSummary {
+  total_products: number;
+  total_amount: number;
+  deposit_paid: number;
+  balance_due: number;
+}
+
+interface Pawn {
+  pawn_info: PawnInfo;
+  client_info: Client;
+  products: PawnProduct[];
+  summary: PawnSummary;
+}
+
+// Helper function to calculate days remaining and status
+const calculatePawnStatus = (expireDate: string) => {
+  const today = new Date();
+  const expire = new Date(expireDate);
+  const daysRemaining = Math.ceil((expire.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (daysRemaining < 0) {
+    return { status: 'overdue', urgent: true, daysRemaining: Math.abs(daysRemaining) };
+  } else if (daysRemaining <= 7) {
+    return { status: 'warning', urgent: true, daysRemaining };
+  } else {
+    return { status: 'active', urgent: false, daysRemaining };
+  }
+};
+
 export default function PawnPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [lastPawns, setLastPawns] = useState<Pawn[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingLastPawns, setLoadingLastPawns] = useState(true);
   const [notification, setNotification] = useState<NotificationState | null>(null);
   const [foundClient, setFoundClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -50,6 +101,7 @@ export default function PawnPage() {
   useEffect(() => {
     loadClients();
     loadProducts();
+    loadLastPawns();
   }, []);
 
   const loadProducts = async () => {
@@ -63,6 +115,64 @@ export default function PawnPage() {
       console.error('Error loading products:', error);
     } finally {
       setLoadingProducts(false);
+    }
+  };
+
+  // Real API call for last pawns
+  const loadLastPawns = async () => {
+    try {
+      setLoadingLastPawns(true);
+      const response = await pawnsApi.getLastPawns();
+      
+      if (response.code === 200 && response.result) {
+        // Transform the API response to match our component's expected format
+        const transformedPawns: Pawn[] = response.result.map((pawn: any) => {
+          const statusInfo = calculatePawnStatus(pawn.pawn_info.pawn_expire_date);
+          
+          return {
+            pawn_info: {
+              ...pawn.pawn_info,
+              // Add calculated fields for compatibility
+              loan_amount: pawn.pawn_info.pawn_deposit, // Using deposit as loan amount
+              interest_rate: 3, // Default interest rate - you might want to get this from API
+              loan_period_days: 30, // Default period - you might want to calculate this
+              due_date: pawn.pawn_info.pawn_expire_date,
+              status: statusInfo.status as 'active' | 'redeemed' | 'defaulted' | 'extended',
+              total_amount_due: pawn.pawn_info.total_amount
+            },
+            client_info: pawn.client_info,
+            // Transform products to items for LastPawn component
+            items: pawn.products.map((product: PawnProduct) => ({
+              item_name: product.prod_name,
+              item_id: product.prod_id,
+              item_weight: product.pawn_weight,
+              item_quantity: product.pawn_amount,
+              estimated_value: product.pawn_unit_price * product.pawn_amount,
+              pawn_amount: product.subtotal,
+              item_condition: 'ល្អ', // Default condition
+              subtotal: product.subtotal
+            })),
+            // Transform summary for compatibility
+            summary: {
+              total_items: pawn.summary.total_products,
+              total_estimated_value: pawn.summary.total_amount,
+              loan_amount: pawn.summary.deposit_paid,
+              interest_amount: pawn.summary.total_amount * 0.03, // Calculate 3% interest
+              total_due: pawn.summary.total_amount,
+              days_remaining: statusInfo.daysRemaining
+            }
+          };
+        });
+        
+        setLastPawns(transformedPawns);
+      } else {
+        showNotification('error', 'មិនអាចទាញយកបញ្ជីការបញ្ចាំបានទេ');
+      }
+    } catch (error: any) {
+      console.error('Error loading recent pawns:', error);
+      showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យការបញ្ចាំ');
+    } finally {
+      setLoadingLastPawns(false);
     }
   };
 
@@ -102,6 +212,10 @@ export default function PawnPage() {
     setFoundClient(null);
     // Reload clients to update the next ID
     loadClients();
+    // Reload recent pawns to show the new pawn
+    loadLastPawns();
+    // Show success notification
+    showNotification('success', 'បានបង្កើតការបញ្ចាំថ្មីដោយជោគជ័យ');
   };
 
   const handleClientFound = (client: Client | null) => {
@@ -124,30 +238,44 @@ export default function PawnPage() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 p-4 overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
-        <div className="h-full grid grid-cols-1 xl:grid-cols-3 gap-4 max-w-full">
+      <div className="flex-1 p-2 overflow-auto">
+        <div className="h-full flex flex-col gap-4">
           
-          {/* Left Panel - Client Form (1/3 width on xl screens) */}
-          <div className="xl:col-span-1 flex flex-col">
-            <ClientForm
-              clients={clients}
-              onClientCreated={handleClientCreated}
-              onNotification={showNotification}
-              onClientFound={handleClientFound}
-              onFormDataChange={handleFormDataChange}
-              formData={formData}
-              foundClient={foundClient}
-            />
+          {/* Top Row - Main Forms */}
+          <div className="flex-shrink-0 grid grid-cols-1 xl:grid-cols-3 gap-4" style={{ minHeight: '400px' }}>
+            
+            {/* Left Panel - Client Form (1/3 width on xl screens) */}
+            <div className="xl:col-span-1 flex flex-col">
+              <ClientForm
+                clients={clients}
+                onClientCreated={handleClientCreated}
+                onNotification={showNotification}
+                onClientFound={handleClientFound}
+                onFormDataChange={handleFormDataChange}
+                formData={formData}
+                foundClient={foundClient}
+              />
+            </div>
+
+            {/* Right Panel - Pawn Form (2/3 width on xl screens) */}
+            <div className="xl:col-span-2 flex flex-col">
+              <PawnForm
+                products={products}
+                onNotification={showNotification}
+                onPawnCreated={handlePawnCreated}
+                formData={formData}
+                foundClient={foundClient}
+              />
+            </div>
           </div>
 
-          {/* Right Panel - Pawn Form (2/3 width on xl screens) */}
-          <div className="xl:col-span-2 flex flex-col">
-            <PawnForm
-              products={products}
+          {/* Bottom Row - Last Pawns Panel */}
+          <div className="flex-shrink-0" style={{ minHeight: '300px' }}>
+            <LastPawn
+              pawns={lastPawns}
+              loading={loadingLastPawns}
+              onRefresh={loadLastPawns}
               onNotification={showNotification}
-              onPawnCreated={handlePawnCreated}
-              formData={formData}
-              foundClient={foundClient}
             />
           </div>
         </div>
