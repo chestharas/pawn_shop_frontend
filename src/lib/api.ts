@@ -185,6 +185,16 @@ export const ordersApi = {
     const response = await apiClient.get('/api/order/next-id');
     return response.data;
   },
+
+  getLastOrders: async (): Promise<ApiResponse> => {
+    const response = await apiClient.get('/api/order/last');
+    return response.data;
+  },
+
+  printOrder: async (orderId: number): Promise<ApiResponse> => {
+    const response = await apiClient.get(`/api/order/${orderId}/print`);
+    return response.data;
+  },
 };
 
 // Pawns API - Based on your Swagger "/api/pawn"
@@ -221,6 +231,17 @@ export const pawnsApi = {
 
   getNextPawnId: async (): Promise<ApiResponse> => {
     const response = await apiClient.get('/api/pawn/next-id');
+    return response.data;
+  },
+
+  getLastPawns: async (): Promise<ApiResponse> => {
+    const response = await apiClient.get('/api/pawn/last');
+    return response.data;
+  },
+
+  // NEW: Print pawn function
+  printPawn: async (pawnId: number): Promise<ApiResponse> => {
+    const response = await apiClient.get(`/api/pawn/${pawnId}/print`);
     return response.data;
   },
 };

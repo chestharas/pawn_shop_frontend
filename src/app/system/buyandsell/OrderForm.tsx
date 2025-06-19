@@ -1,4 +1,4 @@
-// buyandsell/OrderForm.tsx
+// buyandsell/OrderForm.tsx - Updated with Custom Product Input
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,7 +9,8 @@ import {
   ShoppingCart,
   Package,
   Phone,
-  RotateCcw
+  RotateCcw,
+  Edit3
 } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/Button';
@@ -35,6 +36,7 @@ interface OrderProductDetail {
   product_sell_price: number;
   product_labor_cost: number;
   product_buy_price: number;
+  is_custom: boolean; // New field to track custom products
 }
 
 interface OrderData {
@@ -73,13 +75,10 @@ export default function OrderForm({
     order_product_detail: []
   });
 
-  // State and data management
-
   // Fetch next order ID when component mounts or when an order is created
   const fetchNextOrderId = async () => {
     setLoadingNextId(true);
     try {
-      // Use the new dedicated API endpoint to get next order ID
       const response = await ordersApi.getNextOrderId();
       
       console.log('Next Order ID API Response:', response);
@@ -94,14 +93,12 @@ export default function OrderForm({
       }
     } catch (error) {
       console.error('Error fetching next order ID:', error);
-      // Fallback to a default value or handle error
       setNextOrderId(1);
     } finally {
       setLoadingNextId(false);
     }
   };
 
-  // Fetch next order ID when component mounts
   useEffect(() => {
     fetchNextOrderId();
   }, []);
@@ -134,7 +131,8 @@ export default function OrderForm({
           order_amount: 0,
           product_sell_price: 0,
           product_labor_cost: 0,
-          product_buy_price: 0
+          product_buy_price: 0,
+          is_custom: false
         }
       ]
     }));
@@ -146,14 +144,18 @@ export default function OrderForm({
       order_deposit: 0,
       order_product_detail: []
     });
-    // Fetch next order ID after reset
     fetchNextOrderId();
+  };
+
+  // Toggle dropdown visibility (rename for clarity)
+  const toggleProductDropdown = (index: number) => {
+    const product = orderData.order_product_detail[index];
+    updateOrderProduct(index, 'is_custom', !product.is_custom);
   };
 
   const handleOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Get phone number from either formData or foundClient, with validation
     const customerPhone = formData.phone_number?.trim() || foundClient?.phone_number?.trim();
     const customerName = formData.cus_name?.trim() || foundClient?.cus_name?.trim() || '';
     const customerAddress = formData.address?.trim() || foundClient?.address?.trim() || '';
@@ -169,18 +171,39 @@ export default function OrderForm({
       return;
     }
 
+    // Validate that all products have names
+    const invalidProducts = orderData.order_product_detail.filter(
+      product => !product.prod_name.trim()
+    );
+
+    if (invalidProducts.length > 0) {
+      onNotification('error', 'សូមបញ្ចូលឈ្មោះផលិតផលសម្រាប់គ្រប់ទំនិញ');
+      return;
+    }
+
     setSubmittingOrder(true);
 
     try {
+      // Prepare order payload - remove is_custom field as backend doesn't need it
+      const cleanOrderDetails = orderData.order_product_detail.map(product => ({
+        prod_id: product.prod_id,
+        prod_name: product.prod_name,
+        order_weight: product.order_weight,
+        order_amount: product.order_amount,
+        product_sell_price: product.product_sell_price,
+        product_labor_cost: product.product_labor_cost,
+        product_buy_price: product.product_buy_price
+      }));
+
       const orderPayload = {
-        order_id: nextOrderId || 0, // Use the fetched next order ID
+        order_id: nextOrderId || 0,
         cus_id: customerId,
         cus_name: customerName,
         address: customerAddress,
         phone_number: customerPhone,
         order_date: orderData.order_date,
         order_deposit: orderData.order_deposit || 0,
-        order_product_detail: orderData.order_product_detail
+        order_product_detail: cleanOrderDetails
       };
 
       console.log('📤 Sending order payload:', orderPayload);
@@ -189,7 +212,11 @@ export default function OrderForm({
       
       if (response.code === 200) {
         onNotification('success', 'ការបញ្ជាទិញត្រូវបានបង្កើតដោយជោគជ័យ');
-        // resetOrderForm();
+        
+        // Reset the order form after successful submission
+        resetOrderForm();
+        
+        // Call parent component handler
         onOrderCreated();
       } else {
         onNotification('error', response.message || 'មានបញ្ហាក្នុងការបង្កើតការបញ្ជាទិញ');
@@ -259,23 +286,23 @@ export default function OrderForm({
               />
             </div>
           </div>
-          
 
           {/* Products Section */}
           <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold" style={{ color: colors.secondary[800] }}>
-                បញ្ជីផលិតផល
-              </h3>
-              <Button
-                type="button"
-                onClick={addProductToOrder}
-                icon={<Plus className="h-4 w-4" />}
-                size="sm"
-                disabled={!formData.phone_number.trim()}
-              >
-                បន្ថែមផលិតផល
-              </Button>
-            </div>
+            <h3 className="font-semibold" style={{ color: colors.secondary[800] }}>
+              បញ្ជីផលិតផល
+            </h3>
+            <Button
+              type="button"
+              onClick={addProductToOrder}
+              icon={<Plus className="h-4 w-4" />}
+              size="sm"
+              disabled={!formData.phone_number.trim()}
+            >
+              បន្ថែមផលិតផល
+            </Button>
+          </div>
+
           <div>
             {!formData.phone_number.trim() ? (
               <div 
@@ -311,136 +338,177 @@ export default function OrderForm({
                 </div>
 
                 {/* Table Body */}
-                <div className="border border-gray-200 border-t-0 rounded-b-lg overflow-hidden">
-                  {orderData.order_product_detail.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      <Package className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                      <p>មិនមានផលិតផលទេ</p>
-                      <p className="text-sm">ចុចលើ "បន្ថែមផលិតផល" ដើម្បីចាប់ផ្តើម</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-200">
-                      {orderData.order_product_detail.map((product, index) => (
-                        <div 
-                          key={index}
-                          className={`grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors ${
-                            index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
-                          }`}
-                        >
-                          {/* Row Number */}
-                          <div className="col-span-1 text-center">
-                            <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                              {index + 1}
-                            </span>
-                          </div>
+                <div className="border border-gray-200 border-t-0 rounded-b-lg overflow-visible">
+                  <div className="divide-y divide-gray-200">
+                    {orderData.order_product_detail.map((product, index) => (
+                      <div 
+                        key={index}
+                        className={`grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors relative ${
+                          index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+                        }`}
+                        style={{ zIndex: product.is_custom ? 100 : 1 }}
+                      >
+                        {/* Row Number */}
+                        <div className="col-span-1 text-center">
+                          <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                            {index + 1}
+                          </span>
+                        </div>
 
-                          {/* Product Selection */}
-                          <div className="col-span-2">
-                            <select
-                              value={product.prod_id}
-                              onChange={(e) => {
-                                const selectedProduct = products.find(p => p.id === parseInt(e.target.value));
-                                updateOrderProduct(index, 'prod_id', parseInt(e.target.value));
-                                updateOrderProduct(index, 'prod_name', selectedProduct?.name || '');
-                              }}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                              <option value={0}>ជ្រើសរើសផលិតផល</option>
-                              {products.map(prod => (
-                                <option key={prod.id} value={prod.id}>{prod.name}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Weight */}
-                          <div className="col-span-1">
+                        {/* Product Input with Dropdown */}
+                        <div className="col-span-2">
+                          <div className="relative">
+                            {/* Text Input (Always Visible) */}
                             <input
                               type="text"
-                              value={product.order_weight}
-                              onChange={(e) => updateOrderProduct(index, 'order_weight', e.target.value)}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
-                              placeholder="ទម្ងន់"
+                              value={product.prod_name}
+                              onChange={(e) => updateOrderProduct(index, 'prod_name', e.target.value)}
+                              className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="បញ្ចូលឈ្មោះផលិតផល"
                             />
-                          </div>
-
-                          {/* Amount */}
-                          <div className="col-span-1">
-                            <input
-                              type="number"
-                              min="1"
-                              value={product.order_amount}
-                              onChange={(e) => updateOrderProduct(index, 'order_amount', parseInt(e.target.value) || 0)}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
-                              placeholder="ចំនួន"
-                            />
-                          </div>
-
-                          {/* Sell Price */}
-                          <div className="col-span-2">
-                            <div className="relative">
-                              <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={product.product_sell_price}
-                                onChange={(e) => updateOrderProduct(index, 'product_sell_price', parseFloat(e.target.value) || 0)}
-                                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="0.00"
-                              />
+                            
+                            {/* Dropdown Arrow Button */}
+                            <div className="absolute inset-y-0 right-0 flex items-center">
+                              <button
+                                type="button"
+                                onClick={() => toggleProductDropdown(index)}
+                                className="h-full px-3 text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
+                                title="ជ្រើសរើសពីបញ្ជីផលិតផលដែលមាន"
+                              >
+                                <svg 
+                                  className={`h-4 w-4 transition-transform ${product.is_custom ? 'rotate-180' : ''}`} 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
                             </div>
-                          </div>
-
-                          {/* Labor Cost */}
-                          <div className="col-span-2">
-                            <div className="relative">
-                              <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={product.product_labor_cost}
-                                onChange={(e) => updateOrderProduct(index, 'product_labor_cost', parseFloat(e.target.value) || 0)}
-                                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="0.00"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Buy Price */}
-                          <div className="col-span-2">
-                            <div className="relative">
-                              <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={product.product_buy_price}
-                                onChange={(e) => updateOrderProduct(index, 'product_buy_price', parseFloat(e.target.value) || 0)}
-                                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="0.00"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Actions */}
-                          <div className="col-span-1 text-center">
-                            <button
-                              type="button"
-                              onClick={() => removeProductFromOrder(index)}
-                              className="inline-flex items-center justify-center w-8 h-8 bg-red-100 text-red-600 rounded-full hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
-                              title="លុបផលិតផល"
-                            >
-                              <Minus className="h-4 w-4" />
-                            </button>
+                            
+                            {/* Dropdown List (Shown when is_custom is true) */}
+                            {product.is_custom && (
+                              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-48 overflow-y-auto">
+                                <div className="py-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      updateOrderProduct(index, 'prod_name', '');
+                                      updateOrderProduct(index, 'prod_id', 0);
+                                      updateOrderProduct(index, 'is_custom', false);
+                                    }}
+                                    className="w-full px-4 py-3 text-left text-sm text-gray-500 hover:bg-gray-100 border-b border-gray-100 font-medium transition-colors"
+                                  >
+                                    សម្អាតការជ្រើសរើស
+                                  </button>
+                                  {products.map(prod => (
+                                    <button
+                                      key={prod.id}
+                                      type="button"
+                                      onClick={() => {
+                                        updateOrderProduct(index, 'prod_id', prod.id);
+                                        updateOrderProduct(index, 'prod_name', prod.name);
+                                        updateOrderProduct(index, 'is_custom', false);
+                                      }}
+                                      className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 border-b border-gray-50 last:border-b-0 transition-colors"
+                                    >
+                                      {prod.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+
+                        {/* Weight */}
+                        <div className="col-span-1">
+                          <input
+                            type="text"
+                            value={product.order_weight}
+                            onChange={(e) => updateOrderProduct(index, 'order_weight', e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
+                            placeholder="ទម្ងន់"
+                          />
+                        </div>
+
+                        <div className="col-span-1">
+                          <input
+                            type="number"
+                            min="1"
+                            value={product.order_amount}
+                            onChange={(e) => updateOrderProduct(index, 'order_amount', parseInt(e.target.value) || 0)}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
+                            placeholder="1"
+                          />
+                        </div>
+
+                        {/* // Sell Price field (តម្លៃលក់) */}
+                        <div className="col-span-2">
+                          <div className="relative">
+                            <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={product.product_sell_price}
+                              onChange={(e) => updateOrderProduct(index, 'product_sell_price', parseFloat(e.target.value) || 0)}
+                              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="10.00"
+                            />
+                          </div>
+                        </div>
+
+                        {/* // Labor Cost field (ថ្លៃកម្រធ្វើ) */}
+                        <div className="col-span-2">
+                          <div className="relative">
+                            <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={product.product_labor_cost}
+                              onChange={(e) => updateOrderProduct(index, 'product_labor_cost', parseFloat(e.target.value) || 0)}
+                              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="5.00"
+                            />
+                          </div>
+                        </div>
+
+                        {/* // Buy Price field (តម្លៃទិញ) */}
+                        <div className="col-span-2">
+                          <div className="relative">
+                            <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={product.product_buy_price}
+                              onChange={(e) => updateOrderProduct(index, 'product_buy_price', parseFloat(e.target.value) || 0)}
+                              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="3.00"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="col-span-1 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeProductFromOrder(index)}
+                            className="inline-flex items-center justify-center w-8 h-8 bg-red-100 text-red-600 rounded-full hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+                            title="លុបផលិតផល"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
                 {/* Add Product Button */}
-                <div className="flex justify-center pt-4">
+                {/* <div className="flex justify-center pt-4">
                   <button
                     type="button"
                     onClick={addProductToOrder}
@@ -449,7 +517,7 @@ export default function OrderForm({
                     <Plus className="h-4 w-4 mr-2" />
                     បន្ថែមផលិតផល
                   </button>
-                </div>
+                </div> */}
               </div>
             ) : (
               <div 
@@ -493,20 +561,18 @@ export default function OrderForm({
                 </div>
 
                 <div className='flex justify-end p-6 gap-4'>
-                    <Button
-                      // type="button"
-                      onClick={resetOrderForm}
-                      icon={<RotateCcw className="h-4 w-4" />}
-                      size="sm"
-                      disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
-                      type="submit"
-    
-                      className="px-6"
-                    >
-                      សម្អាត
-                    </Button>
-                  
-                    <Button
+                  <Button
+                    type="button"
+                    onClick={resetOrderForm}
+                    icon={<RotateCcw className="h-4 w-4" />}
+                    size="sm"
+                    disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
+                    className="px-6"
+                  >
+                    សម្អាត
+                  </Button>
+                
+                  <Button
                     type="submit"
                     disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
                     loading={submittingOrder}
@@ -529,8 +595,6 @@ export default function OrderForm({
                 icon={<RotateCcw className="h-4 w-4" />}
                 size="sm"
                 disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
-                // type="submit"
-
                 className="px-6"
               >
                 សម្អាត
