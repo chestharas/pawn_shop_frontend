@@ -74,23 +74,25 @@ export default function LastOrders({
   const [printing, setPrinting] = useState<{ [key: number]: boolean }>({});
 
   // Print Order Function - Using API
+  // Updated handlePrintOrder function in LastOrders.tsx
   const handlePrintOrder = async (orderId: number) => {
     setPrinting(prev => ({ ...prev, [orderId]: true }));
     
     try {
-      console.log(`🖨️ Starting print for order ID: ${orderId}`);
+      console.log(`🖨 Starting print for order ID: ${orderId}`);
       const response = await ordersApi.printOrder(orderId);
       
       if (response.code === 200 && response.result) {
         console.log('✅ Print data received:', response.result);
         
+        // Transform the backend data to match our print format
+        const transformedData = transformPrintData(response.result);
+        
         // Create a new window for printing
         const printWindow = window.open('', '_blank');
         if (printWindow) {
-          const printData = response.result;
-          
           // Generate HTML for printing
-          const printHTML = generatePrintHTML(printData);
+          const printHTML = generatePrintHTML(transformedData);
           
           printWindow.document.write(printHTML);
           printWindow.document.close();
@@ -126,6 +128,61 @@ export default function LastOrders({
       setPrinting(prev => ({ ...prev, [orderId]: false }));
     }
   };
+
+  // New function to transform backend data to frontend print format
+  const transformPrintData = (backendData: any) => {
+    try {
+      // Calculate totals
+      const subtotal = backendData.products?.reduce((sum: number, item: any) => {
+        return sum + (item.order_amount * item.product_sell_price);
+      }, 0) || 0;
+
+      const totalLabor = backendData.products?.reduce((sum: number, item: any) => {
+        return sum + (item.product_labor_cost || 0);
+      }, 0) || 0;
+
+      const grandTotal = subtotal + totalLabor;
+      const deposit = backendData.order_deposit || 0;
+      const balanceDue = grandTotal - deposit;
+
+      return {
+        header: {
+          title: 'វិក្កយបត្រ',
+          order_id: `ការបញ្ជាទិញលេខ #${backendData.order_id}`,
+          date: backendData.order_date || new Date().toISOString().split('T')[0]
+        },
+        customer: {
+          name: backendData.customer?.customer_name || 'មិនបានបញ្ចូល',
+          phone: backendData.customer?.phone_number || 'មិនបានបញ្ចូល',
+          address: backendData.customer?.address || 'មិនបានបញ្ចូល'
+        },
+        items: backendData.products?.map((product: any) => ({
+          prod_name: product.prod_name || 'មិនបានបញ្ចូល',
+          weight: product.order_weight || '-',
+          quantity: product.order_amount || 0,
+          unit_price: product.product_sell_price || 0,
+          labor_cost: product.product_labor_cost || 0,
+          buy_price: product.product_buy_price || 0,
+          subtotal: (product.order_amount || 0) * (product.product_sell_price || 0)
+        })) || [],
+        totals: {
+          subtotal: subtotal,
+          total_labor: totalLabor,
+          grand_total: grandTotal,
+          deposit: deposit,
+          balance_due: balanceDue
+        },
+        footer: {
+          thank_you: 'អរគុណសម្រាប់ការទិញ!',
+          note: 'សូមរក្សាវិក្កយបត្រនេះសម្រាប់ការយោង។'
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error transforming print data:', error);
+      throw new Error('Failed to transform print data');
+    }
+  };
+
 
   // Generate Print HTML Function - Enhanced with better error handling
   const generatePrintHTML = (printData: any) => {
