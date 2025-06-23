@@ -1,4 +1,4 @@
-// buyandsell/ClientForm.tsx
+// pawn/ClientForm.tsx - Updated with Pawn Form Reset
 'use client';
 
 import { useState } from 'react';
@@ -36,6 +36,7 @@ interface ClientFormProps {
   onFormDataChange: (formData: FormData) => void;
   formData: FormData;
   foundClient: Client | null;
+  onResetBothForms?: () => void; // New prop to reset pawn form as well
 }
 
 export default function ClientForm({
@@ -45,7 +46,8 @@ export default function ClientForm({
   onClientFound,
   onFormDataChange,
   formData,
-  foundClient
+  foundClient,
+  onResetBothForms
 }: ClientFormProps) {
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -58,8 +60,16 @@ export default function ClientForm({
   };
 
   const resetForm = () => {
+    console.log('🔄 Resetting both forms');
+    
+    // Reset client form data
     onFormDataChange({ cus_name: '', address: '', phone_number: '' });
     onClientFound(null);
+    
+    // Reset pawn form as well if callback is provided
+    if (onResetBothForms) {
+      onResetBothForms();
+    }
   };
 
   const handleSearchClient = async () => {
@@ -274,36 +284,20 @@ export default function ClientForm({
               />
             </div>
           </div>
-
-          {/* Found Client Status */}
-          {/* {foundClient && (
-            <div 
-              className="p-3 rounded-lg text-sm"
-              style={{
-                backgroundColor: colors.success[50],
-                color: colors.success[700],
-                border: `1px solid ${colors.success[200]}`
-              }}
-            >
-            រកឃើញអតិថិជនដែលមានស្រាប់ក្នុងប្រព័ន្ធ
-            </div>
-          )} */}
         </div>
 
         {/* Action Buttons - Pinned to bottom */}
         <div className="flex space-x-3 pt-6 mt-auto">
           <Button
-                type="button"
-                onClick={handleSearchClient}
-                loading={searching}
-                disabled={searching || !formData.phone_number.trim()}
-                icon={<Search className="h-4 w-4" />}
-                className="flex-1"
-                // variant="secondary"
-                // size="sm"
-              >
-                ស្វែងរក
-              </Button>
+            type="button"
+            onClick={handleSearchClient}
+            loading={searching}
+            disabled={searching || !formData.phone_number.trim()}
+            icon={<Search className="h-4 w-4" />}
+            className="flex-1"
+          >
+            ស្វែងរក
+          </Button>
 
           <Button
             type="button"

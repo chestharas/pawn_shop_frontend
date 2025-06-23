@@ -1,4 +1,4 @@
-// buyandsell/OrderForm.tsx - Updated with Custom Product Input
+// buyandsell/OrderForm.tsx - Updated with External Reset Support
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -57,6 +57,7 @@ interface OrderFormProps {
   onOrderCreated: () => void;
   formData: FormData;
   foundClient: Client | null;
+  onRegisterResetFunction?: (resetFunction: () => void) => void; // New prop to register reset function
 }
 
 export default function OrderForm({
@@ -64,7 +65,8 @@ export default function OrderForm({
   onNotification,
   onOrderCreated,
   formData,
-  foundClient
+  foundClient,
+  onRegisterResetFunction
 }: OrderFormProps) {
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [nextOrderId, setNextOrderId] = useState<number | null>(null);
@@ -98,6 +100,23 @@ export default function OrderForm({
       setLoadingNextId(false);
     }
   };
+
+  const resetOrderForm = () => {
+    console.log('🔄 Resetting order form');
+    setOrderData({
+      order_date: new Date().toISOString().split('T')[0],
+      order_deposit: 0,
+      order_product_detail: []
+    });
+    fetchNextOrderId();
+  };
+
+  // Register the reset function with parent component
+  useEffect(() => {
+    if (onRegisterResetFunction) {
+      onRegisterResetFunction(resetOrderForm);
+    }
+  }, [onRegisterResetFunction]);
 
   useEffect(() => {
     fetchNextOrderId();
@@ -136,15 +155,6 @@ export default function OrderForm({
         }
       ]
     }));
-  };
-
-  const resetOrderForm = () => {
-    setOrderData({
-      order_date: new Date().toISOString().split('T')[0],
-      order_deposit: 0,
-      order_product_detail: []
-    });
-    fetchNextOrderId();
   };
 
   // Toggle dropdown visibility (rename for clarity)
@@ -443,7 +453,7 @@ export default function OrderForm({
                           />
                         </div>
 
-                        {/* // Sell Price field (តម្លៃលក់) */}
+                        {/* Sell Price field (តម្លៃលក់) */}
                         <div className="col-span-2">
                           <div className="relative">
                             <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
@@ -459,7 +469,7 @@ export default function OrderForm({
                           </div>
                         </div>
 
-                        {/* // Labor Cost field (ថ្លៃកម្រធ្វើ) */}
+                        {/* Labor Cost field (ថ្លៃកម្រធ្វើ) */}
                         <div className="col-span-2">
                           <div className="relative">
                             <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
@@ -475,7 +485,7 @@ export default function OrderForm({
                           </div>
                         </div>
 
-                        {/* // Buy Price field (តម្លៃទិញ) */}
+                        {/* Buy Price field (តម្លៃទិញ) */}
                         <div className="col-span-2">
                           <div className="relative">
                             <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
@@ -506,18 +516,6 @@ export default function OrderForm({
                     ))}
                   </div>
                 </div>
-
-                {/* Add Product Button */}
-                {/* <div className="flex justify-center pt-4">
-                  <button
-                    type="button"
-                    onClick={addProductToOrder}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    បន្ថែមផលិតផល
-                  </button>
-                </div> */}
               </div>
             ) : (
               <div 
@@ -561,17 +559,6 @@ export default function OrderForm({
                 </div>
 
                 <div className='flex justify-end p-6 gap-4'>
-                  {/* <Button
-                    type="button"
-                    onClick={resetOrderForm}
-                    icon={<RotateCcw className="h-4 w-4" />}
-                    size="sm"
-                    disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
-                    className="px-6"
-                  >
-                    សម្អាត
-                  </Button> */}
-                
                   <Button
                     type="submit"
                     disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
@@ -589,17 +576,6 @@ export default function OrderForm({
           {/* Submit button when no products */}
           {(!orderData.order_product_detail || orderData.order_product_detail.length === 0) && (
             <div className="flex justify-end p-6 gap-4">
-              {/* <Button
-                type="button"
-                onClick={resetOrderForm}
-                icon={<RotateCcw className="h-4 w-4" />}
-                size="sm"
-                disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
-                className="px-6"
-              >
-                សម្អាត
-              </Button> */} 
-
               <Button
                 type="submit"
                 disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
@@ -615,4 +591,4 @@ export default function OrderForm({
       </form>
     </Card>
   );
-}
+}   

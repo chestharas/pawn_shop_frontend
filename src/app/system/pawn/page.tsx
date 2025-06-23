@@ -1,7 +1,7 @@
-// pawn/page.tsx
+// pawn/page.tsx - Updated with Reset Both Forms Functionality
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { clientsApi, productsApi, pawnsApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
 
@@ -97,6 +97,9 @@ export default function PawnPage() {
     address: '',
     phone_number: ''
   });
+
+  // Ref to trigger pawn form reset
+  const pawnFormResetRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -226,6 +229,29 @@ export default function PawnPage() {
     setFormData(newFormData);
   };
 
+  // Function to reset both forms when called from ClientForm
+  const handleResetBothForms = () => {
+    console.log('🔄 Resetting both forms from pawn page component');
+    
+    // Reset client form data
+    setFormData({
+      cus_name: '',
+      address: '',
+      phone_number: ''
+    });
+    setFoundClient(null);
+    
+    // Reset pawn form by calling the ref function
+    if (pawnFormResetRef.current) {
+      pawnFormResetRef.current();
+    }
+  };
+
+  // Function to register pawn form reset function
+  const registerPawnFormReset = (resetFunction: () => void) => {
+    pawnFormResetRef.current = resetFunction;
+  };
+
   return (
     <div 
       className="h-full overflow-hidden flex flex-col" 
@@ -254,6 +280,7 @@ export default function PawnPage() {
                 onFormDataChange={handleFormDataChange}
                 formData={formData}
                 foundClient={foundClient}
+                onResetBothForms={handleResetBothForms}
               />
             </div>
 
@@ -265,6 +292,7 @@ export default function PawnPage() {
                 onPawnCreated={handlePawnCreated}
                 formData={formData}
                 foundClient={foundClient}
+                onRegisterResetFunction={registerPawnFormReset}
               />
             </div>
           </div>

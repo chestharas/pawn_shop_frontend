@@ -1,4 +1,4 @@
-// pawn/PawnForm.tsx
+// pawn/PawnForm.tsx - Updated with External Reset Support
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -55,6 +55,7 @@ interface PawnFormProps {
   onPawnCreated: () => void;
   formData: FormData;
   foundClient: Client | null;
+  onRegisterResetFunction?: (resetFunction: () => void) => void; // New prop to register reset function
 }
 
 export default function PawnForm({
@@ -62,7 +63,8 @@ export default function PawnForm({
   onNotification,
   onPawnCreated,
   formData,
-  foundClient
+  foundClient,
+  onRegisterResetFunction
 }: PawnFormProps) {
   const [submittingPawn, setSubmittingPawn] = useState(false);
   const [nextPawnId, setNextPawnId] = useState<number | null>(null);
@@ -104,6 +106,29 @@ export default function PawnForm({
     }
   };
 
+  const resetPawnForm = () => {
+    console.log('🔄 Resetting pawn form');
+    setPawnData({
+      pawn_date: new Date().toISOString().split('T')[0],
+      pawn_expire_date: (() => {
+        const expireDate = new Date();
+        expireDate.setMonth(expireDate.getMonth() + 1);
+        return expireDate.toISOString().split('T')[0];
+      })(),
+      pawn_deposit: 0,
+      pawn_product_detail: []
+    });
+    // Fetch next pawn ID after reset
+    fetchNextPawnId();
+  };
+
+  // Register the reset function with parent component
+  useEffect(() => {
+    if (onRegisterResetFunction) {
+      onRegisterResetFunction(resetPawnForm);
+    }
+  }, [onRegisterResetFunction]);
+
   // Fetch next pawn ID when component mounts
   useEffect(() => {
     fetchNextPawnId();
@@ -139,21 +164,6 @@ export default function PawnForm({
         }
       ]
     }));
-  };
-
-  const resetPawnForm = () => {
-    setPawnData({
-      pawn_date: new Date().toISOString().split('T')[0],
-      pawn_expire_date: (() => {
-        const expireDate = new Date();
-        expireDate.setMonth(expireDate.getMonth() + 1);
-        return expireDate.toISOString().split('T')[0];
-      })(),
-      pawn_deposit: 0,
-      pawn_product_detail: []
-    });
-    // Fetch next pawn ID after reset
-    fetchNextPawnId();
   };
 
   const calculateTotalValue = () => {
