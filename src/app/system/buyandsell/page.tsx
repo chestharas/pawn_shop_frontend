@@ -1,7 +1,7 @@
-// buyandsell/page.tsx - Updated with LastOrders Component
+// buyandsell/page.tsx - Updated with Reset Both Forms Functionality
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { clientsApi, productsApi, ordersApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
 
@@ -96,6 +96,9 @@ export default function BuyAndSellPage() {
   // Last Orders State
   const [lastOrders, setLastOrders] = useState<Order[]>([]);
   const [loadingLastOrders, setLoadingLastOrders] = useState(false);
+
+  // Ref to trigger order form reset
+  const orderFormResetRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -202,6 +205,29 @@ export default function BuyAndSellPage() {
     setFormData(newFormData);
   };
 
+  // Function to reset both forms when called from ClientForm
+  const handleResetBothForms = () => {
+    console.log('🔄 Resetting both forms from page component');
+    
+    // Reset client form data
+    setFormData({
+      cus_name: '',
+      address: '',
+      phone_number: ''
+    });
+    setFoundClient(null);
+    
+    // Reset order form by calling the ref function
+    if (orderFormResetRef.current) {
+      orderFormResetRef.current();
+    }
+  };
+
+  // Function to register order form reset function
+  const registerOrderFormReset = (resetFunction: () => void) => {
+    orderFormResetRef.current = resetFunction;
+  };
+
   return (
     <div 
       className="h-full overflow-hidden flex flex-col" 
@@ -229,6 +255,7 @@ export default function BuyAndSellPage() {
                 onFormDataChange={handleFormDataChange}
                 formData={formData}
                 foundClient={foundClient}
+                onResetBothForms={handleResetBothForms}
               />
             </div>
 
@@ -240,6 +267,7 @@ export default function BuyAndSellPage() {
                 onOrderCreated={handleOrderCreated}
                 formData={formData}
                 foundClient={foundClient}
+                onRegisterResetFunction={registerOrderFormReset}
               />
             </div>  
           </div>
@@ -257,4 +285,4 @@ export default function BuyAndSellPage() {
       </div>
     </div>
   );
-} 
+}

@@ -1,4 +1,4 @@
-// buyandsell/ClientForm.tsx - Debug Version
+// buyandsell/ClientForm.tsx - Updated with Order Form Reset
 'use client';
 
 import { useState } from 'react';
@@ -36,6 +36,7 @@ interface ClientFormProps {
   onFormDataChange: (formData: FormData) => void;
   formData: FormData;
   foundClient: Client | null;
+  onResetBothForms?: () => void; // New prop to reset order form as well
 }
 
 export default function ClientForm({
@@ -45,16 +46,11 @@ export default function ClientForm({
   onClientFound,
   onFormDataChange,
   formData,
-  foundClient
+  foundClient,
+  onResetBothForms
 }: ClientFormProps) {
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  // Debug: Log formData whenever it changes
-  // console.log('🔍 Current formData:', formData);
-  // console.log('Phone number value:', formData.phone_number);
-  // console.log('Phone number type:', typeof formData.phone_number);
-  // console.log('Phone number length:', formData.phone_number?.length);
 
   // Function to calculate next ID from existing clients
   const getNextId = (): number => {
@@ -64,9 +60,16 @@ export default function ClientForm({
   };
 
   const resetForm = () => {
-    console.log('🔄 Resetting form');
+    console.log('🔄 Resetting both forms');
+    
+    // Reset client form data
     onFormDataChange({ cus_name: '', address: '', phone_number: '' });
     onClientFound(null);
+    
+    // Reset order form as well if callback is provided
+    if (onResetBothForms) {
+      onResetBothForms();
+    }
   };
 
   const handleSearchClient = async () => {
@@ -224,15 +227,6 @@ export default function ClientForm({
     <Card title="បំពេញអតិថិជនថ្មី" className="h-full flex flex-col">
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
         <div className="space-y-4 flex-1">
-          {/* Debug Panel */}
-          {/* <div className="text-xs bg-yellow-50 border border-yellow-200 rounded p-2">
-            <div><strong>Debug Info:</strong></div>
-            <div>cus_name: "{formData.cus_name}" (type: {typeof formData.cus_name})</div>
-            <div>phone_number: "{formData.phone_number}" (type: {typeof formData.phone_number})</div>
-            <div>address: "{formData.address}" (type: {typeof formData.address})</div>
-            <div>foundClient: {foundClient ? `ID ${foundClient.cus_id}` : 'null'}</div>
-          </div> */}
-
           {/* Client ID */}
           <div>
             <label 
@@ -315,17 +309,6 @@ export default function ClientForm({
                   required
                 />
               </div>
-              {/* <Button
-                type="button"
-                onClick={handleSearchClient}
-                loading={searching}
-                disabled={searching || !formData.phone_number?.trim()}
-                icon={<Search className="h-4 w-4" />}
-                variant="secondary"
-                size="sm"
-              >
-                ស្វែងរក
-              </Button> */}
             </div>
           </div>
 
