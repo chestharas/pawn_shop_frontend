@@ -192,7 +192,7 @@ export const ordersApi = {
   },
 
   printOrder: async (orderId: number): Promise<ApiResponse> => {
-    const response = await apiClient.get(`/api/order/${orderId}/print`);
+    const response = await apiClient.get(`/api/orders/print?order_id=${orderId}`);
     return response.data;
   },
 };

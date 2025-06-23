@@ -519,7 +519,7 @@ export default function ProductPage() {
 
           {/* Right Panel - Products Table (2/3 width on xl screens) */}
           <div className="xl:col-span-2 flex flex-col">
-            <Card title="សន្ទស្សន៍បញ្ជីទំនិញ" padding={false} className="h-full flex flex-col">
+            <Card title="បញ្ជីទំនិញ" padding={false} className="h-full flex flex-col">
               {/* Search Header */}
               <div className="p-4 border-b flex-shrink-0" style={{ borderBottomColor: colors.secondary[200] }}>
                 <SearchInput
