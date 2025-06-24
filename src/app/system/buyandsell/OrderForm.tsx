@@ -1,4 +1,4 @@
-// buyandsell/OrderForm.tsx - Updated with External Reset Support
+// buyandsell/OrderForm.tsx - Clean Rewrite with ProductDropdown Component
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,13 +8,12 @@ import {
   Minus,
   ShoppingCart,
   Package,
-  Phone,
-  RotateCcw,
-  Edit3
+  Phone
 } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import ProductDropdown from '@/components/ui/ProductDropdown';
 
 interface Client {
   cus_id: number;
@@ -36,7 +35,6 @@ interface OrderProductDetail {
   product_sell_price: number;
   product_labor_cost: number;
   product_buy_price: number;
-  is_custom: boolean; // New field to track custom products
 }
 
 interface OrderData {
@@ -57,7 +55,7 @@ interface OrderFormProps {
   onOrderCreated: () => void;
   formData: FormData;
   foundClient: Client | null;
-  onRegisterResetFunction?: (resetFunction: () => void) => void; // New prop to register reset function
+  onRegisterResetFunction?: (resetFunction: () => void) => void;
 }
 
 export default function OrderForm({
@@ -77,20 +75,32 @@ export default function OrderForm({
     order_product_detail: []
   });
 
-  // Fetch next order ID when component mounts or when an order is created
+  // Format display value for number inputs (show empty string instead of 0)
+  const formatDisplayValue = (value: number): string => {
+    return value === 0 ? '' : value.toString();
+  };
+
+  // Parse input value to number with fallback to 0
+  const parseInputValue = (value: string): number => {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Parse integer input value with fallback to 0
+  const parseIntegerValue = (value: string): number => {
+    const parsed = parseInt(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Fetch next order ID from API
   const fetchNextOrderId = async () => {
     setLoadingNextId(true);
     try {
       const response = await ordersApi.getNextOrderId();
       
-      console.log('Next Order ID API Response:', response);
-      
       if (response.code === 200 && response.result) {
-        const nextId = response.result.next_order_id;
-        console.log('Next Order ID:', nextId);
-        setNextOrderId(nextId);
+        setNextOrderId(response.result.next_order_id);
       } else {
-        console.log('Failed to get next order ID, starting with 1');
         setNextOrderId(1);
       }
     } catch (error) {
@@ -101,8 +111,8 @@ export default function OrderForm({
     }
   };
 
+  // Reset order form to initial state
   const resetOrderForm = () => {
-    console.log('🔄 Resetting order form');
     setOrderData({
       order_date: new Date().toISOString().split('T')[0],
       order_deposit: 0,
@@ -111,33 +121,19 @@ export default function OrderForm({
     fetchNextOrderId();
   };
 
-  // Register the reset function with parent component
+  // Register reset function with parent component
   useEffect(() => {
     if (onRegisterResetFunction) {
       onRegisterResetFunction(resetOrderForm);
     }
   }, [onRegisterResetFunction]);
 
+  // Load next order ID on component mount
   useEffect(() => {
     fetchNextOrderId();
   }, []);
 
-  const removeProductFromOrder = (index: number) => {
-    setOrderData(prev => ({
-      ...prev,
-      order_product_detail: prev.order_product_detail?.filter((_, i) => i !== index) || []
-    }));
-  };
-
-  const updateOrderProduct = (index: number, field: keyof OrderProductDetail, value: any) => {
-    setOrderData(prev => ({
-      ...prev,
-      order_product_detail: prev.order_product_detail?.map((item, i) => 
-        i === index ? { ...item, [field]: value } : item
-      ) || []
-    }));
-  };
-
+  // Add new product row to order
   const addProductToOrder = () => {
     setOrderData(prev => ({
       ...prev,
@@ -150,19 +146,53 @@ export default function OrderForm({
           order_amount: 0,
           product_sell_price: 0,
           product_labor_cost: 0,
-          product_buy_price: 0,
-          is_custom: false
+          product_buy_price: 0
         }
       ]
     }));
   };
 
-  // Toggle dropdown visibility (rename for clarity)
-  const toggleProductDropdown = (index: number) => {
-    const product = orderData.order_product_detail[index];
-    updateOrderProduct(index, 'is_custom', !product.is_custom);
+  // Remove product from order by index
+  const removeProductFromOrder = (index: number) => {
+    setOrderData(prev => ({
+      ...prev,
+      order_product_detail: prev.order_product_detail?.filter((_, i) => i !== index) || []
+    }));
   };
 
+  // Update specific field of a product in order
+  const updateOrderProduct = (index: number, field: keyof OrderProductDetail, value: any) => {
+    setOrderData(prev => ({
+      ...prev,
+      order_product_detail: prev.order_product_detail?.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      ) || []
+    }));
+  };
+
+  // Handle product selection from dropdown
+  const handleProductSelect = (index: number, productId: number, productName: string) => {
+    updateOrderProduct(index, 'prod_id', productId);
+    updateOrderProduct(index, 'prod_name', productName);
+  };
+
+  // Handle custom product name input
+  const handleCustomProductChange = (index: number, value: string) => {
+    updateOrderProduct(index, 'prod_name', value);
+    // Reset product ID when manually typing custom name
+    if (orderData.order_product_detail[index]?.prod_id !== 0) {
+      updateOrderProduct(index, 'prod_id', 0);
+    }
+  };
+
+  // Calculate total order amount
+  const calculateOrderTotal = (): number => {
+    return orderData.order_product_detail.reduce((total, product) => 
+      total + ((product.order_amount * product.product_sell_price) + product.product_labor_cost), 0
+    );
+  };
+
+  // Handle form submission
   const handleOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -171,6 +201,7 @@ export default function OrderForm({
     const customerAddress = formData.address?.trim() || foundClient?.address?.trim() || '';
     const customerId = foundClient?.cus_id || 0;
 
+    // Validation
     if (!customerPhone) {
       onNotification('error', 'សូមបញ្ចូលលេខទូរសព្ទអតិថិជន');
       return;
@@ -181,7 +212,7 @@ export default function OrderForm({
       return;
     }
 
-    // Validate that all products have names
+    // Validate all products have names
     const invalidProducts = orderData.order_product_detail.filter(
       product => !product.prod_name.trim()
     );
@@ -194,17 +225,7 @@ export default function OrderForm({
     setSubmittingOrder(true);
 
     try {
-      // Prepare order payload - remove is_custom field as backend doesn't need it
-      const cleanOrderDetails = orderData.order_product_detail.map(product => ({
-        prod_id: product.prod_id,
-        prod_name: product.prod_name,
-        order_weight: product.order_weight,
-        order_amount: product.order_amount,
-        product_sell_price: product.product_sell_price,
-        product_labor_cost: product.product_labor_cost,
-        product_buy_price: product.product_buy_price
-      }));
-
+      // Prepare order payload
       const orderPayload = {
         order_id: nextOrderId || 0,
         cus_id: customerId,
@@ -213,20 +234,22 @@ export default function OrderForm({
         phone_number: customerPhone,
         order_date: orderData.order_date,
         order_deposit: orderData.order_deposit || 0,
-        order_product_detail: cleanOrderDetails
+        order_product_detail: orderData.order_product_detail.map(product => ({
+          prod_id: product.prod_id,
+          prod_name: product.prod_name,
+          order_weight: product.order_weight,
+          order_amount: product.order_amount,
+          product_sell_price: product.product_sell_price,
+          product_labor_cost: product.product_labor_cost,
+          product_buy_price: product.product_buy_price
+        }))
       };
-
-      console.log('📤 Sending order payload:', orderPayload);
 
       const response = await ordersApi.create(orderPayload);
       
       if (response.code === 200) {
         onNotification('success', 'ការបញ្ជាទិញត្រូវបានបង្កើតដោយជោគជ័យ');
-        
-        // Reset the order form after successful submission
         resetOrderForm();
-        
-        // Call parent component handler
         onOrderCreated();
       } else {
         onNotification('error', response.message || 'មានបញ្ហាក្នុងការបង្កើតការបញ្ជាទិញ');
@@ -239,17 +262,24 @@ export default function OrderForm({
       setSubmittingOrder(false);
     }
   };
+
+  const isFormDisabled = !formData.phone_number.trim();
+  const hasProducts = orderData.order_product_detail && orderData.order_product_detail.length > 0;
   
   return (
     <Card title="បង្កើតការបញ្ជាទិញ" className="h-full flex flex-col">
       <form onSubmit={handleOrderSubmit} className="flex-1 flex flex-col">
         <div className="space-y-4 flex-1 overflow-y-auto max-h-96">
-          {/* Order Details */}
+          
+          {/* Order Header Information */}
           <div className="grid grid-cols-3 gap-4">
+            {/* Order ID */}
             <div>
-              <label className='block text-sm font-medium mb-2'>លេខវិក្កយបត្រ: </label>
+              <label className="block text-sm font-medium mb-2" style={{ color: colors.secondary[700] }}>
+                លេខវិក្កយបត្រ
+              </label>
               <div 
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-md text-center font-medium"
                 style={{ 
                   backgroundColor: colors.secondary[100],
                   borderColor: colors.secondary[300],
@@ -265,6 +295,8 @@ export default function OrderForm({
                 )}
               </div>
             </div>
+
+            {/* Order Date */}
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: colors.secondary[700] }}>
                 កាលបរិច្ចេទបញ្ជាទិញ
@@ -276,9 +308,11 @@ export default function OrderForm({
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={{ borderColor: colors.secondary[300] }}
                 required
-                disabled={!formData.phone_number.trim()}
+                disabled={isFormDisabled}
               />
             </div>
+
+            {/* Deposit Amount */}
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: colors.secondary[700] }}>
                 ប្រាក់កក់
@@ -287,17 +321,17 @@ export default function OrderForm({
                 type="number"
                 min="0"
                 step="0.01"
-                value={orderData.order_deposit}
-                onChange={(e) => setOrderData({ ...orderData, order_deposit: parseFloat(e.target.value) || 0 })}
+                value={formatDisplayValue(orderData.order_deposit)}
+                onChange={(e) => setOrderData({ ...orderData, order_deposit: parseInputValue(e.target.value) })}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={{ borderColor: colors.secondary[300] }}
                 placeholder="0.00"
-                disabled={!formData.phone_number.trim()}
+                disabled={isFormDisabled}
               />
             </div>
           </div>
 
-          {/* Products Section */}
+          {/* Products Section Header */}
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold" style={{ color: colors.secondary[800] }}>
               បញ្ជីផលិតផល
@@ -307,14 +341,16 @@ export default function OrderForm({
               onClick={addProductToOrder}
               icon={<Plus className="h-4 w-4" />}
               size="sm"
-              disabled={!formData.phone_number.trim()}
+              disabled={isFormDisabled}
             >
               បន្ថែមផលិតផល
             </Button>
           </div>
 
+          {/* Products Content */}
           <div>
-            {!formData.phone_number.trim() ? (
+            {isFormDisabled ? (
+              /* Phone number required message */
               <div 
                 className="p-8 text-center border-2 border-dashed rounded-lg"
                 style={{ borderColor: colors.secondary[200], backgroundColor: colors.secondary[25] }}
@@ -324,7 +360,8 @@ export default function OrderForm({
                   សូមបញ្ចូលលេខទូរសព្ទអតិថិជនក្នុងផ្នែកខាងឆ្វេងមុនសិន
                 </p>
               </div>
-            ) : orderData.order_product_detail && orderData.order_product_detail.length > 0 ? (
+            ) : hasProducts ? (
+              /* Products Table */
               <div className="space-y-4">
                 {/* Table Header */}
                 <div className="bg-gray-50 border border-gray-200 rounded-t-lg">
@@ -332,7 +369,7 @@ export default function OrderForm({
                     <h3 className="text-lg font-semibold text-gray-900">បញ្ជីផលិតផល</h3>
                   </div>
                   
-                  {/* Excel-style Header Row */}
+                  {/* Column Headers */}
                   <div className="border-t border-gray-200 bg-gray-100">
                     <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm font-medium text-gray-700">
                       <div className="col-span-1 text-center">#</div>
@@ -348,15 +385,14 @@ export default function OrderForm({
                 </div>
 
                 {/* Table Body */}
-                <div className="border border-gray-200 border-t-0 rounded-b-lg overflow-visible">
+                <div className="border border-gray-200 border-t-0 rounded-b-lg">
                   <div className="divide-y divide-gray-200">
                     {orderData.order_product_detail.map((product, index) => (
                       <div 
                         key={index}
-                        className={`grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors relative ${
+                        className={`grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors ${
                           index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
                         }`}
-                        style={{ zIndex: product.is_custom ? 100 : 1 }}
                       >
                         {/* Row Number */}
                         <div className="col-span-1 text-center">
@@ -365,70 +401,19 @@ export default function OrderForm({
                           </span>
                         </div>
 
-                        {/* Product Input with Dropdown */}
+                        {/* Product Dropdown */}
                         <div className="col-span-2">
-                          <div className="relative">
-                            {/* Text Input (Always Visible) */}
-                            <input
-                              type="text"
-                              value={product.prod_name}
-                              onChange={(e) => updateOrderProduct(index, 'prod_name', e.target.value)}
-                              className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="បញ្ចូលឈ្មោះផលិតផល"
-                            />
-                            
-                            {/* Dropdown Arrow Button */}
-                            <div className="absolute inset-y-0 right-0 flex items-center">
-                              <button
-                                type="button"
-                                onClick={() => toggleProductDropdown(index)}
-                                className="h-full px-3 text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
-                                title="ជ្រើសរើសពីបញ្ជីផលិតផលដែលមាន"
-                              >
-                                <svg 
-                                  className={`h-4 w-4 transition-transform ${product.is_custom ? 'rotate-180' : ''}`} 
-                                  fill="none" 
-                                  stroke="currentColor" 
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </button>
-                            </div>
-                            
-                            {/* Dropdown List (Shown when is_custom is true) */}
-                            {product.is_custom && (
-                              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-48 overflow-y-auto">
-                                <div className="py-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      updateOrderProduct(index, 'prod_name', '');
-                                      updateOrderProduct(index, 'prod_id', 0);
-                                      updateOrderProduct(index, 'is_custom', false);
-                                    }}
-                                    className="w-full px-4 py-3 text-left text-sm text-gray-500 hover:bg-gray-100 border-b border-gray-100 font-medium transition-colors"
-                                  >
-                                    សម្អាតការជ្រើសរើស
-                                  </button>
-                                  {products.map(prod => (
-                                    <button
-                                      key={prod.id}
-                                      type="button"
-                                      onClick={() => {
-                                        updateOrderProduct(index, 'prod_id', prod.id);
-                                        updateOrderProduct(index, 'prod_name', prod.name);
-                                        updateOrderProduct(index, 'is_custom', false);
-                                      }}
-                                      className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 border-b border-gray-50 last:border-b-0 transition-colors"
-                                    >
-                                      {prod.name}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                          <ProductDropdown
+                            products={products}
+                            value={product.prod_name}
+                            onProductSelect={(productId, productName) => 
+                              handleProductSelect(index, productId, productName)
+                            }
+                            onCustomValueChange={(value) => 
+                              handleCustomProductChange(index, value)
+                            }
+                            placeholder="បញ្ចូលឈ្មោះផលិតផល"
+                          />
                         </div>
 
                         {/* Weight */}
@@ -442,18 +427,19 @@ export default function OrderForm({
                           />
                         </div>
 
+                        {/* Amount */}
                         <div className="col-span-1">
                           <input
                             type="number"
-                            min="1"
-                            value={product.order_amount}
-                            onChange={(e) => updateOrderProduct(index, 'order_amount', parseInt(e.target.value) || 0)}
+                            min="0"
+                            value={formatDisplayValue(product.order_amount)}
+                            onChange={(e) => updateOrderProduct(index, 'order_amount', parseIntegerValue(e.target.value))}
                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
                             placeholder="1"
                           />
                         </div>
 
-                        {/* Sell Price field (តម្លៃលក់) */}
+                        {/* Sell Price */}
                         <div className="col-span-2">
                           <div className="relative">
                             <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
@@ -461,15 +447,15 @@ export default function OrderForm({
                               type="number"
                               min="0"
                               step="0.01"
-                              value={product.product_sell_price}
-                              onChange={(e) => updateOrderProduct(index, 'product_sell_price', parseFloat(e.target.value) || 0)}
+                              value={formatDisplayValue(product.product_sell_price)}
+                              onChange={(e) => updateOrderProduct(index, 'product_sell_price', parseInputValue(e.target.value))}
                               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               placeholder="10.00"
                             />
                           </div>
                         </div>
 
-                        {/* Labor Cost field (ថ្លៃកម្រធ្វើ) */}
+                        {/* Labor Cost */}
                         <div className="col-span-2">
                           <div className="relative">
                             <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
@@ -477,15 +463,15 @@ export default function OrderForm({
                               type="number"
                               min="0"
                               step="0.01"
-                              value={product.product_labor_cost}
-                              onChange={(e) => updateOrderProduct(index, 'product_labor_cost', parseFloat(e.target.value) || 0)}
+                              value={formatDisplayValue(product.product_labor_cost)}
+                              onChange={(e) => updateOrderProduct(index, 'product_labor_cost', parseInputValue(e.target.value))}
                               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               placeholder="5.00"
                             />
                           </div>
                         </div>
 
-                        {/* Buy Price field (តម្លៃទិញ) */}
+                        {/* Buy Price */}
                         <div className="col-span-2">
                           <div className="relative">
                             <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
@@ -493,15 +479,15 @@ export default function OrderForm({
                               type="number"
                               min="0"
                               step="0.01"
-                              value={product.product_buy_price}
-                              onChange={(e) => updateOrderProduct(index, 'product_buy_price', parseFloat(e.target.value) || 0)}
+                              value={formatDisplayValue(product.product_buy_price)}
+                              onChange={(e) => updateOrderProduct(index, 'product_buy_price', parseInputValue(e.target.value))}
                               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               placeholder="3.00"
                             />
                           </div>
                         </div>
 
-                        {/* Actions */}
+                        {/* Remove Button */}
                         <div className="col-span-1 text-center">
                           <button
                             type="button"
@@ -518,6 +504,7 @@ export default function OrderForm({
                 </div>
               </div>
             ) : (
+              /* No products message */
               <div 
                 className="p-8 text-center border-2 border-dashed rounded-lg"
                 style={{ borderColor: colors.secondary[200] }}
@@ -534,11 +521,11 @@ export default function OrderForm({
           </div>
         </div>  
 
-        {/* Submit Button */}
+        {/* Footer Section */}
         <div className="pt-4 mt-auto border-t" style={{ borderTopColor: colors.secondary[200] }}>
-          {/* Summary Section */}
-          {orderData.order_product_detail && orderData.order_product_detail.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          {hasProducts ? (
+            /* Order Summary with Submit Button */
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-6">
                   <div className="text-center">
@@ -551,34 +538,28 @@ export default function OrderForm({
                   <div className="text-center">
                     <span className="text-sm font-medium text-gray-600">សរុបតម្លៃ: </span>
                     <span className="text-lg font-bold text-black-600">
-                      ${orderData.order_product_detail.reduce((total, product) => 
-                        total + ((product.order_amount * product.product_sell_price) + product.product_labor_cost), 0
-                      ).toFixed(2)}
+                      ${calculateOrderTotal().toFixed(2)}
                     </span>
                   </div>
                 </div>
 
-                <div className='flex justify-end p-6 gap-4'>
-                  <Button
-                    type="submit"
-                    disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
-                    loading={submittingOrder}
-                    icon={<ShoppingCart className="h-4 w-4" />}
-                    className="px-6"
-                  >
-                    បង្កើតការបញ្ជាទិញ
-                  </Button>
-                </div>
+                <Button
+                  type="submit"
+                  disabled={submittingOrder || isFormDisabled || loadingNextId}
+                  loading={submittingOrder}
+                  icon={<ShoppingCart className="h-4 w-4" />}
+                  className="px-6"
+                >
+                  បង្កើតការបញ្ជាទិញ
+                </Button>
               </div>
             </div>
-          )}
-
-          {/* Submit button when no products */}
-          {(!orderData.order_product_detail || orderData.order_product_detail.length === 0) && (
-            <div className="flex justify-end p-6 gap-4">
+          ) : (
+            /* Submit button when no products */
+            <div className="flex justify-end">
               <Button
                 type="submit"
-                disabled={submittingOrder || !formData.phone_number.trim() || loadingNextId}
+                disabled={submittingOrder || isFormDisabled || loadingNextId}
                 loading={submittingOrder}
                 icon={<ShoppingCart className="h-4 w-4" />}
                 className="px-6"
@@ -591,4 +572,4 @@ export default function OrderForm({
       </form>
     </Card>
   );
-}   
+}
