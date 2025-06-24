@@ -241,7 +241,7 @@ export const pawnsApi = {
 
   // NEW: Print pawn function
   printPawn: async (pawnId: number): Promise<ApiResponse> => {
-    const response = await apiClient.get(`/api/pawn/${pawnId}/print`);
+    const response = await apiClient.get(`/api/pawn/print?pawn_id=${pawnId}`);
     return response.data;
   },
 };

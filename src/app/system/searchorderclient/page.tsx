@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ordersApi } from '@/lib/api';
+import { printOrder } from '@/lib/printOrder';
 import { 
   Search, 
   Eye,
@@ -19,7 +20,8 @@ import {
   Package,
   Hash,
   UserCheck,
-  RefreshCw
+  RefreshCw,
+  Printer
 } from 'lucide-react';
 
 interface Client {
@@ -98,120 +100,169 @@ export default function OrderPage() {
   const [notification, setNotification] = useState<Notification | null>(null);
   const [showClientDetail, setShowClientDetail] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
+  const [printLoading, setPrintLoading] = useState<{ [key: number]: boolean }>({});
+  const isMountedRef = useRef(true);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
+  // Track component mount state
   useEffect(() => {
-    loadClients();
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
-    if (notification) {
+    if (isMountedRef.current) {
+      loadClients();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (notification && isMountedRef.current) {
       const timer = setTimeout(() => {
-        setNotification(null);
+        if (isMountedRef.current) {
+          setNotification(null);
+        }
       }, 5000);
       return () => clearTimeout(timer);
     }
   }, [notification]);
 
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message });
-  };
+  const showNotification = useCallback((type: 'success' | 'error', message: string) => {
+    if (isMountedRef.current) {
+      setNotification({ type, message });
+    }
+  }, []);
 
   const loadClients = async () => {
+    if (!isMountedRef.current) return;
+
     try {
       setLoading(true);
       const response = await ordersApi.getClientOrders();
-      if (response.code === 200 && response.result) {
+      if (response.code === 200 && response.result && isMountedRef.current) {
         setClients(response.result);
-      } else {
+      } else if (isMountedRef.current) {
         showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
       }
     } catch (error: any) {
       console.error('Error loading clients:', error);
-      showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យអតិថិជន');
+      if (isMountedRef.current) {
+        showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យអតិថិជន');
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
-  const handleSearch = async (filters: SearchFilters) => {
-    const hasActiveSearch = filters.cus_id.trim() || 
-                           filters.cus_name.trim() || 
-                           filters.phone_number.trim();
-
-    if (!hasActiveSearch) return;
-
-    try {
-      setSearchLoading(true);
-      setIsSearchMode(true);
-      
-      // Build search parameters with validation
-      const searchParams: any = {};
-      
-      if (filters.cus_id.trim()) {
-        const cusId = parseInt(filters.cus_id.trim());
-        if (!isNaN(cusId)) {
-          searchParams.cus_id = cusId;
-        }
-      }
-      
-      if (filters.cus_name.trim()) {
-        searchParams.cus_name = filters.cus_name.trim();
-      }
-      
-      if (filters.phone_number.trim()) {
-        searchParams.phone_number = filters.phone_number.trim();
-      }
-
-      const response = await ordersApi.getClientOrderSearch(searchParams);
-      
-      if (response.code === 200) {
-        // Ensure we have a valid array result and filter out invalid entries
-        const results = Array.isArray(response.result) ? response.result : [];
-        
-        // Filter out entries where all fields are null/undefined/N/A
-        const validResults = results.filter(client => {
-          return client && (
-            (client.cus_id && client.cus_id !== 'N/A') ||
-            (client.cus_name && client.cus_name !== 'N/A') ||
-            (client.phone_number && client.phone_number !== 'N/A')
-          );
-        });
-        
-        setClients(validResults);
-        
-        if (validResults.length === 0) {
-          showNotification('error', 'មិនរកឃើញអតិថិជនដែលត្រូវគ្នាទេ');
-        }
-      } else {
-        setClients([]);
-        if (response.message) {
-          showNotification('error', response.message);
-        }
-      }
-    } catch (error: any) {
-      console.error('Error searching clients:', error);
-      setClients([]);
-      showNotification('error', 'មានបញ្ហាក្នុងការស្វែងរក');
-    } finally {
-      setSearchLoading(false);
+  // Debounced search function
+  const debouncedSearch = useCallback((filters: SearchFilters) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
-  };
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      if (!isMountedRef.current) return;
+
+      const hasActiveSearch = filters.cus_id.trim() || 
+                            filters.cus_name.trim() || 
+                            filters.phone_number.trim();
+
+      if (!hasActiveSearch) return;
+
+      try {
+        setSearchLoading(true);
+        setIsSearchMode(true);
+        
+        // Build search parameters with validation
+        const searchParams: any = {};
+        
+        if (filters.cus_id.trim()) {
+          const cusId = parseInt(filters.cus_id.trim());
+          if (!isNaN(cusId)) {
+            searchParams.cus_id = cusId;
+          }
+        }
+        
+        if (filters.cus_name.trim()) {
+          searchParams.cus_name = filters.cus_name.trim();
+        }
+        
+        if (filters.phone_number.trim()) {
+          searchParams.phone_number = filters.phone_number.trim();
+        }
+
+        const response = await ordersApi.getClientOrderSearch(searchParams);
+        
+        if (!isMountedRef.current) return;
+
+        if (response.code === 200) {
+          const results = Array.isArray(response.result) ? response.result : [];
+          
+          const validResults = results.filter(client => {
+            return client && (
+              (client.cus_id && client.cus_id !== 'N/A') ||
+              (client.cus_name && client.cus_name !== 'N/A') ||
+              (client.phone_number && client.phone_number !== 'N/A')
+            );
+          });
+          
+          setClients(validResults);
+          
+          if (validResults.length === 0) {
+            showNotification('error', 'មិនរកឃើញអតិថិជនដែលត្រូវគ្នាទេ');
+          }
+        } else {
+          setClients([]);
+          if (response.message) {
+            showNotification('error', response.message);
+          }
+        }
+      } catch (error: any) {
+        console.error('Error searching clients:', error);
+        if (isMountedRef.current) {
+          setClients([]);
+          showNotification('error', 'មានបញ្ហាក្នុងការស្វែងរក');
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setSearchLoading(false);
+        }
+      }
+    }, 300); // 300ms debounce delay
+  }, [showNotification]);
+
+  const handleSearch = useCallback((filters: SearchFilters) => {
+    debouncedSearch(filters);
+  }, [debouncedSearch]);
 
   const loadClientDetail = async (clientId: number) => {
+    if (!isMountedRef.current) return;
+
     try {
       setDetailLoading(true);
       const response = await ordersApi.getClientOrderById(clientId.toString());
-      if (response.code === 200 && response.result) {
+      if (response.code === 200 && response.result && isMountedRef.current) {
         setClientDetail(response.result);
         setShowClientDetail(true);
-      } else {
+      } else if (isMountedRef.current) {
         showNotification('error', 'មិនអាចទាញយកព័ត៌មានលម្អិតអតិថិជនបានទេ');
       }
     } catch (error: any) {
       console.error('Error loading client detail:', error);
-      showNotification('error', 'មានបញ្ហាក្នុងការទាញយកព័ត៌មានលម្អិតអតិថិជន');
+      if (isMountedRef.current) {
+        showNotification('error', 'មានបញ្ហាក្នុងការទាញយកព័ត៌មានលម្អិតអតិថិជន');
+      }
     } finally {
-      setDetailLoading(false);
+      if (isMountedRef.current) {
+        setDetailLoading(false);
+      }
     }
   };
 
@@ -266,6 +317,23 @@ export default function OrderPage() {
     loadClients();
   };
 
+  const handlePrintOrder = async (orderId: number) => {
+    if (!isMountedRef.current) return;
+
+    setPrintLoading(prev => ({ ...prev, [orderId]: true }));
+    
+    try {
+      await printOrder(orderId, showNotification);
+    } catch (error) {
+      console.error('Print failed:', error);
+      showNotification('error', 'មានបញ្ហាក្នុងការបោះពុម្ព');
+    } finally {
+      if (isMountedRef.current) {
+        setPrintLoading(prev => ({ ...prev, [orderId]: false }));
+      }
+    }
+  };
+  
   const getActiveSearchCount = () => {
     return Object.values(searchFilters).filter(value => value.trim()).length;
   };
@@ -285,18 +353,24 @@ export default function OrderPage() {
 
   return (
     <div className="space-y-6">
-      {/* Notification */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center space-x-2 ${
-          notification.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
+      {/* Notification with safe DOM handling */}
+      {notification && isMountedRef.current && (
+        <div 
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center space-x-2 ${
+            notification.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}
+          role="alert"
+        >
           {notification.type === 'success' ? (
             <CheckCircle className="h-5 w-5" />
           ) : (
             <AlertCircle className="h-5 w-5" />
           )}
           <span>{notification.message}</span>
-          <button onClick={() => setNotification(null)}>
+          <button 
+            onClick={() => isMountedRef.current && setNotification(null)}
+            className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-full"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -566,7 +640,7 @@ export default function OrderPage() {
           </div>
         </div>
       ) : (
-        // Client Detail View (unchanged)
+        // Client Detail View with Print Button State
         <div className="space-y-6">
           {detailLoading ? (
             <div className="bg-white rounded-lg shadow p-6">
@@ -637,102 +711,114 @@ export default function OrderPage() {
                 </div>
               </div>
 
-              {/* Orders List */}
-              <div className="bg-white rounded-lg shadow">
-                <div className="p-6">
-                  {clientDetail.orders.length === 0 ? (
-                    <div className="text-center py-12">
-                      <ShoppingCart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 text-lg">មិនមានកម្ម័ងទេ</p>
-                      <p className="text-gray-400 text-sm mt-2">កម្ម័ងនឹងបង្ហាញនៅទីនេះ នៅពេលដែលមានការបញ្ជាទិញ</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {clientDetail.orders.map((order) => (
-                        <div key={order.order_id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                          {/* Enhanced Order Header */}
-                          <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                                <ShoppingCart className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <div>
-                                <h4 className="text-lg font-semibold text-gray-900">កម្ម័ង #{order.order_id}</h4>
-                                <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
-                                  <Calendar className="h-4 w-4" />
-                                  <span>{new Date(order.order_date).toLocaleDateString('km-KH')}</span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="text-right">
-                              <p className="text-xs text-gray-500 mb-1">ប្រាក់កក់</p>
-                              <p className="text-xl font-bold text-blue-600">${order.order_deposit}</p>
-                            </div>
-                          </div>
+              {/* Orders List with Print Button State */}
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <ShoppingCart className="h-5 w-5 mr-2 text-blue-600" />
+                    ប្រវត្តិការកម្មង់
+                  </h3>
+                </div>
 
-                          {/* Products Section */}
-                          <div className="p-6">
-                            <div className="space-y-4">
-                              <div className="flex items-center justify-between">
-                                <h5 className="text-lg font-semibold text-gray-900 flex items-center">
-                                  <Package className="h-5 w-5 mr-2 text-blue-600" />
-                                  បញ្ជីទំនិញ
-                                </h5>
-                                <span className="text-sm text-gray-500">({order.products.length} ប្រភេទ)</span>
-                              </div>
-                              
-                              <div className="bg-gray-50 rounded-lg overflow-hidden">
-                                {/* Product List Header */}
-                                <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
-                                  <div className="grid grid-cols-6 gap-4 text-sm font-medium text-gray-700">
-                                    <div className="col-span-2">ឈ្មោះទំនិញ</div>
-                                    <div className="text-center">ទម្ងន់</div>
-                                    <div className="text-center">បរិមាណ</div>
-                                    <div className="text-center">តម្លៃ/ឯកតា</div>
-                                    <div className="text-center">សរុប</div>
-                                  </div>
-                                </div>
-                                
-                                {/* Product List Items */}
-                                <div className="divide-y divide-gray-200">
-                                  {order.products.map((product, index) => (
-                                    <div key={`${product.prod_id}-${index}`} className="px-4 py-3 hover:bg-gray-50">
-                                      <div className="grid grid-cols-6 gap-4 items-center">
-                                        <div className="col-span-2 flex items-center space-x-3">
-                                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                            <Package className="h-5 w-5 text-blue-600" />
-                                          </div>
-                                          <div>
-                                            <p className="font-medium text-gray-900">{product.prod_name}</p>
-                                            <p className="text-xs text-gray-500">ID: {product.prod_id}</p>
-                                          </div>
-                                        </div>
-                                        <div className="text-center text-sm text-gray-600">
-                                          {product.order_weight}
-                                        </div>
-                                        <div className="text-center">
-                                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            {product.order_amount}
-                                          </span>
-                                        </div>
-                                        <div className="text-center font-medium text-gray-900">
-                                          ${product.product_sell_price}
-                                        </div>
-                                        <div className="text-center font-semibold text-gray-900">
-                                          ${product.product_sell_price * product.order_amount}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
+                <div className="divide-y divide-gray-100">
+                  {clientDetail.orders.map((order) => (
+                    <div key={order.order_id} className="p-6">
+                      {/* Enhanced Order Header */}
+                      <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                            <ShoppingCart className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-semibold text-gray-900">កម្ម័ង #{order.order_id}</h4>
+                            <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
+                              <Calendar className="h-4 w-4" />
+                              <span>{new Date(order.order_date).toLocaleDateString('km-KH')}</span>
                             </div>
                           </div>
                         </div>
-                      ))}
+                        
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500 mb-1">ប្រាក់កក់</p>
+                            <p className="text-xl font-bold text-blue-600">${order.order_deposit}</p>
+                          </div>
+
+                          <button
+                            onClick={() => handlePrintOrder(order.order_id)}
+                            disabled={printLoading[order.order_id]}
+                            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                          >
+                            {printLoading[order.order_id] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Printer className="h-4 w-4" />
+                            )}
+                            <span className="ml-2">បោះពុម្ព</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Products Section */}
+                      <div className="p-6">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-lg font-semibold text-gray-900 flex items-center">
+                              <Package className="h-5 w-5 mr-2 text-blue-600" />
+                              បញ្ជីទំនិញ
+                            </h5>
+                            <span className="text-sm text-gray-500">({order.products.length} ប្រភេទ)</span>
+                          </div>
+                          
+                          <div className="bg-gray-50 rounded-lg overflow-hidden">
+                            {/* Product List Header */}
+                            <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
+                              <div className="grid grid-cols-6 gap-4 text-sm font-medium text-gray-700">
+                                <div className="col-span-2">ឈ្មោះទំនិញ</div>
+                                <div className="text-center">ទម្ងន់</div>
+                                <div className="text-center">បរិមាណ</div>
+                                <div className="text-center">តម្លៃ/ឯកតា</div>
+                                <div className="text-center">សរុប</div>
+                              </div>
+                            </div>
+                            
+                            {/* Product List Items */}
+                            <div className="divide-y divide-gray-200">
+                              {order.products.map((product, index) => (
+                                <div key={`${product.prod_id}-${index}`} className="px-4 py-3 hover:bg-gray-50">
+                                  <div className="grid grid-cols-6 gap-4 items-center">
+                                    <div className="col-span-2 flex items-center space-x-3">
+                                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <Package className="h-5 w-5 text-blue-600" />
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-gray-900">{product.prod_name}</p>
+                                        <p className="text-xs text-gray-500">ID: {product.prod_id}</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-center text-sm text-gray-600">
+                                      {product.order_weight}
+                                    </div>
+                                    <div className="text-center">
+                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {product.order_amount}
+                                      </span>
+                                    </div>
+                                    <div className="text-center font-medium text-gray-900">
+                                      ${product.product_sell_price}
+                                    </div>
+                                    <div className="text-center font-semibold text-gray-900">
+                                      ${product.product_sell_price * product.order_amount}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             </>
