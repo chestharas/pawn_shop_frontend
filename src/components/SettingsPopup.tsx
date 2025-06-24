@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useSettings } from '@/contexts/SettingsContext';
 import { 
@@ -55,52 +55,51 @@ export default function SettingsPopup() {
   });
 
   // Zoom functionality - FIXED VERSION
+  // const [zoomLevel, setZoomLevel] = useState(100);
+
+  // Safe zoom functionality - CSS-only approach (NO DOM MANIPULATION)
   const [zoomLevel, setZoomLevel] = useState(100);
+  const isMountedRef = useRef(true);
 
+  // Track component mount state  
   useEffect(() => {
-    // Create a wrapper div for main content if it doesn't exist
-    let mainContentWrapper = document.getElementById('main-content-wrapper');
-    
-    if (!mainContentWrapper) {
-      mainContentWrapper = document.createElement('div');
-      mainContentWrapper.id = 'main-content-wrapper';
-      mainContentWrapper.style.transition = 'transform 0.3s ease';
-      mainContentWrapper.style.transformOrigin = 'top left';
-      
-      // Move all body children except sidebar and fixed elements to the wrapper
-      const bodyChildren = Array.from(document.body.children);
-      const elementsToMove: Element[] = [];
-      
-      bodyChildren.forEach(child => {
-        // Don't move sidebar, fixed elements, or the wrapper itself
-        if (!child.classList.contains('sidebar-container') && 
-            !child.classList.contains('fixed') && 
-            child.id !== 'main-content-wrapper' &&
-            !child.hasAttribute('data-exclude-zoom')) {
-          elementsToMove.push(child);
-        }
-      });
-      
-      // Move elements to wrapper
-      elementsToMove.forEach(element => {
-        mainContentWrapper?.appendChild(element);
-      });
-      
-      document.body.appendChild(mainContentWrapper);
-    }
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-    // Apply zoom only to the main content wrapper
+  // Safe zoom implementation using CSS only
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    
     const scale = zoomLevel / 100;
-    mainContentWrapper.style.transform = `scale(${scale})`;
-    mainContentWrapper.style.width = `${100 / scale}%`;
-    mainContentWrapper.style.height = `${100 / scale}%`;
+    
+    // Apply zoom directly to body with safety checks
+    if (document.body && document.body.style) {
+      try {
+        document.body.style.transform = `scale(${scale})`;
+        document.body.style.transformOrigin = 'top left';
+        document.body.style.width = `${100 / scale}%`;
+        document.body.style.height = `${100 / scale}%`;
+        document.body.style.overflow = scale !== 1 ? 'auto' : '';
+      } catch (error) {
+        console.warn('Failed to apply zoom safely:', error);
+      }
+    }
     
     return () => {
-      // Reset on unmount
-      if (mainContentWrapper) {
-        mainContentWrapper.style.transform = 'scale(1)';
-        mainContentWrapper.style.width = '100%';
-        mainContentWrapper.style.height = '100%';
+      // Safe cleanup - reset only if still mounted
+      if (isMountedRef.current && document.body && document.body.style) {
+        try {
+          document.body.style.transform = '';
+          document.body.style.transformOrigin = '';
+          document.body.style.width = '';
+          document.body.style.height = '';
+          document.body.style.overflow = '';
+        } catch (error) {
+          console.warn('Failed to reset zoom safely:', error);
+        }
       }
     };
   }, [zoomLevel]);
