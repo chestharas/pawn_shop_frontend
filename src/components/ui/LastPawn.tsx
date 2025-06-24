@@ -2,7 +2,6 @@
 'use client';
 
 import { useState } from 'react';
-import { pawnsApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
 import { 
   Clock,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from './Button';
 import { Card } from './Card';
+import { printPawn } from '@/lib/printPawn'; // Import the pawn print utility
 
 // Pawn Interfaces
 interface PawnItem {
@@ -117,295 +117,17 @@ export default function LastPawn({
     }
   };
 
-  // Print Pawn Function - Using API
+  // Simplified print handler using the utility function
   const handlePrintPawn = async (pawnId: number) => {
     setPrinting(prev => ({ ...prev, [pawnId]: true }));
     
     try {
-      console.log(`🖨️ Starting print for pawn ID: ${pawnId}`);
-      const response = await pawnsApi.printPawn(pawnId);
-      
-      if (response.code === 200 && response.result) {
-        console.log('✅ Print data received:', response.result);
-        
-        // Create a new window for printing
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          const printData = response.result;
-          
-          // Generate HTML for printing
-          const printHTML = generatePrintHTML(printData);
-          
-          printWindow.document.write(printHTML);
-          printWindow.document.close();
-          
-          // Print after a short delay to ensure content is loaded
-          setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-          }, 500);
-          
-          onNotification('success', 'បានបើកទំព័របោះពុម្ពដោយជោគជ័យ');
-        } else {
-          onNotification('error', 'មិនអាចបើកទំព័របោះពុម្ពបានទេ - browser បានរារាំង popup');
-        }
-      } else {
-        console.log('❌ Print failed:', response);
-        onNotification('error', response.message || 'មានបញ្ហាក្នុងការរៀបចំទិន្នន័យសម្រាប់បោះពុម្ព');
-      }
-    } catch (error: any) {
-      console.error('❌ Error printing pawn:', error);
-      
-      // Better error handling for print functionality
-      if (error.message?.includes('Unexpected token') || error.message?.includes('JSON')) {
-        onNotification('error', 'Print API មិនត្រឹមត្រូវ - សូមពិនិត្យ backend');
-      } else if (error.response?.status === 404) {
-        onNotification('error', `ការបញ្ចាំលេខ ${pawnId} មិនត្រូវបានរកឃើញ`);
-      } else if (error.response?.status === 401) {
-        onNotification('error', 'សូមចូលប្រើប្រាស់ម្តងទៀត');
-      } else {
-        onNotification('error', 'មានបញ្ហាក្នុងការបោះពុម្ព');
-      }
+      await printPawn(pawnId, onNotification);
+    } catch (error) {
+      // Error handling is already done in the print utility
+      console.error('Pawn print failed:', error);
     } finally {
       setPrinting(prev => ({ ...prev, [pawnId]: false }));
-    }
-  };
-
-  // Generate Print HTML Function - Enhanced for Pawn
-  const generatePrintHTML = (printData: any) => {
-    try {
-      // Validate print data structure
-      if (!printData || !printData.header || !printData.customer || !printData.items || !printData.loan_details) {
-        console.error('❌ Invalid pawn print data structure:', printData);
-        throw new Error('Print data is missing required fields');
-      }
-
-      const currentDate = new Date().toLocaleDateString('km-KH', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-
-      return `
-        <!DOCTYPE html>
-        <html lang="km">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>វិក្កយបត្របញ្ចាំ #${printData.header.pawn_id || 'N/A'}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;700&display=swap');
-            
-            body { 
-              font-family: 'Noto Sans Khmer', 'Khmer OS', Arial, sans-serif; 
-              margin: 20px; 
-              line-height: 1.6;
-              color: #333;
-            }
-            .header { 
-              text-align: center; 
-              margin-bottom: 30px; 
-              border-bottom: 2px solid #dc2626;
-              padding-bottom: 20px;
-            }
-            .header h1 {
-              color: #dc2626;
-              margin-bottom: 10px;
-              font-size: 24px;
-            }
-            .pawn-info { 
-              margin-bottom: 20px; 
-              background-color: #fef2f2;
-              padding: 15px;
-              border-radius: 5px;
-              border-left: 4px solid #dc2626;
-            }
-            .customer-info { 
-              margin-bottom: 20px; 
-              background-color: #f0f8ff;
-              padding: 15px;
-              border-radius: 5px;
-            }
-            .customer-info h3 {
-              color: #dc2626;
-              margin-bottom: 10px;
-              font-size: 18px;
-            }
-            .loan-info {
-              margin-bottom: 20px;
-              background-color: #fff7ed;
-              padding: 15px;
-              border-radius: 5px;
-              border-left: 4px solid #f59e0b;
-            }
-            .loan-info h3 {
-              color: #f59e0b;
-              margin-bottom: 10px;
-              font-size: 18px;
-            }
-            .items-table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin-bottom: 20px; 
-              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-            .items-table th, .items-table td { 
-              border: 1px solid #ddd; 
-              padding: 12px 8px; 
-              text-align: left; 
-              font-size: 14px;
-            }
-            .items-table th { 
-              background-color: #dc2626; 
-              font-weight: bold;
-              color: white;
-            }
-            .items-table tr:nth-child(even) {
-              background-color: #f9f9f9;
-            }
-            .items-table tr:hover {
-              background-color: #fef2f2;
-            }
-            .totals { 
-              text-align: right; 
-              margin-bottom: 20px; 
-              background-color: #fff7ed;
-              padding: 15px;
-              border-radius: 5px;
-              border-left: 4px solid #f59e0b;
-            }
-            .totals p {
-              margin: 5px 0;
-              font-size: 14px;
-            }
-            .totals .total-due {
-              font-size: 18px;
-              font-weight: bold;
-              color: #dc2626;
-              border-top: 2px solid #333;
-              padding-top: 10px;
-              margin-top: 10px;
-            }
-            .warning-box {
-              background-color: #fef3cd;
-              border: 2px solid #f59e0b;
-              border-radius: 5px;
-              padding: 15px;
-              margin: 20px 0;
-              text-align: center;
-            }
-            .warning-box h4 {
-              color: #92400e;
-              margin-bottom: 10px;
-            }
-            .footer { 
-              text-align: center; 
-              margin-top: 30px; 
-              font-style: italic; 
-              color: #666;
-              border-top: 1px solid #ddd;
-              padding-top: 20px;
-            }
-            .text-right { text-align: right; }
-            .text-center { text-align: center; }
-            .font-bold { font-weight: bold; }
-            
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-              .header { page-break-inside: avoid; }
-              .customer-info { page-break-inside: avoid; }
-              .totals { page-break-inside: avoid; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>🏪 ${printData.header.title || 'វិក្កយបត្របញ្ចាំ'}</h1>
-            <p><strong>លេខបញ្ចាំ: #${printData.header.pawn_id || 'N/A'}</strong></p>
-            <p>កាលបរិច្ចេទបញ្ចាំ: ${printData.header.date || 'N/A'}</p>
-            <p>បោះពុម្ពនៅ: ${currentDate}</p>
-          </div>
-          
-          <div class="customer-info">
-            <h3>📋 ព័ត៌មានអតិថិជន:</h3>
-            <p><strong>ឈ្មោះ:</strong> ${printData.customer.name || 'មិនបានបញ្ចូល'}</p>
-            <p><strong>លេខទូរសព្ទ:</strong> ${printData.customer.phone || 'មិនបានបញ្ចូល'}</p>
-            <p><strong>អាសយដ្ឋាន:</strong> ${printData.customer.address || 'មិនបានបញ្ចូល'}</p>
-          </div>
-
-          <div class="loan-info">
-            <h3>💰 ព័ត៌មានប្រាក់កម្ចី:</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-              <div>
-                <p><strong>ប្រាក់កម្ចី:</strong> $${(printData.loan_details.loan_amount || 0).toFixed(2)}</p>
-                <p><strong>អត្រាការប្រាក់:</strong> ${printData.loan_details.interest_rate || 0}% ក្នុងមួយខែ</p>
-                <p><strong>រយៈពេល:</strong> ${printData.loan_details.loan_period || 0} ថ្ងៃ</p>
-              </div>
-              <div>
-                <p><strong>កាលបរិច្ចេទផុតកំណត់:</strong> ${printData.loan_details.due_date || 'N/A'}</p>
-                <p><strong>ការប្រាក់:</strong> $${(printData.loan_details.interest_amount || 0).toFixed(2)}</p>
-                <p><strong>ស្ថានភាព:</strong> ${printData.loan_details.status_text || 'សកម្ម'}</p>
-              </div>
-            </div>
-          </div>
-
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th style="width: 5%">#</th>
-                <th style="width: 30%">វត្ថុបញ្ចាំ</th>
-                <th style="width: 10%">ទម្ងន់</th>
-                <th style="width: 8%">ចំនួន</th>
-                <th style="width: 15%">ស្ថានភាព</th>
-                <th style="width: 12%">តម្លៃប៉ាន់ស្មាន</th>
-                <th style="width: 12%">ប្រាក់កម្ចី</th>
-                <th style="width: 8%">សរុប</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${printData.items.map((item: any, index: number) => `
-                <tr>
-                  <td class="text-center">${index + 1}</td>
-                  <td>${item.item_name || 'មិនបានបញ្ចូល'}</td>
-                  <td class="text-center">${item.weight || '-'}</td>
-                  <td class="text-center">${item.quantity || 0}</td>
-                  <td class="text-center">${item.condition || 'ល្អ'}</td>
-                  <td class="text-right">$${(item.estimated_value || 0).toFixed(2)}</td>
-                  <td class="text-right">$${(item.pawn_amount || 0).toFixed(2)}</td>
-                  <td class="text-right font-bold">$${(item.subtotal || 0).toFixed(2)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-
-          <div class="totals">
-            <p><strong>តម្លៃវត្ថុសរុប: $${(printData.totals.total_estimated_value || 0).toFixed(2)}</strong></p>
-            <p><strong>ប្រាក់កម្ចីសរុប: $${(printData.totals.loan_amount || 0).toFixed(2)}</strong></p>
-            <p><strong>ការប្រាក់: $${(printData.totals.interest_amount || 0).toFixed(2)}</strong></p>
-            <p class="total-due">សរុបត្រូវសង: $${(printData.totals.total_due || 0).toFixed(2)}</p>
-          </div>
-
-          <div class="warning-box">
-            <h4>⚠️ សម្គាល់សំខាន់</h4>
-            <p>• វត្ថុបញ្ចាំនឹងត្រូវបាត់បង់បើមិនមកដោះក្នុងកំណត់ពេល</p>
-            <p>• ការប្រាក់គិតតាមថ្ងៃចាប់ពីថ្ងៃបញ្ចាំ</p>
-            <p>• សូមរក្សាវិក្កយបត្រនេះសម្រាប់ការដោះវត្ថុ</p>
-          </div>
-
-          <div class="footer">
-            <p><strong>${printData.footer?.thank_you || 'អរគុណសម្រាប់ការទុកចិត្ត!'}</strong></p>
-            <p>${printData.footer?.note || 'សូមអានខ្លឹមសារលើវិក្កយបត្រដោយយកចិត្តទុកដាក់។'}</p>
-          </div>
-        </body>
-        </html>
-      `;
-    } catch (error) {
-      console.error('❌ Error generating pawn print HTML:', error);
-      onNotification('error', 'មានបញ្ហាក្នុងការបង្កើតទំព័របោះពុម្ព');
-      return '<html><body><h1>Error generating print content</h1></body></html>';
     }
   };
 

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { pawnsApi } from '@/lib/api';
+import { printPawn } from '@/lib/printPawn';
 import { 
   Search, 
   Eye,
@@ -19,7 +20,8 @@ import {
   Package,
   Hash,
   UserCheck,
-  RefreshCw
+  RefreshCw,
+  Printer
 } from 'lucide-react';
 
 interface Client {
@@ -80,23 +82,39 @@ export default function PawnPage() {
     phone_number: ''
   });
   const [isSearchMode, setIsSearchMode] = useState(false);
+  const [printLoading, setPrintLoading] = useState<{ [key: number]: boolean }>({});
+  const isMountedRef = useRef(true);
 
+  // Track component mount state
   useEffect(() => {
-    loadClients();
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (notification) {
+    if (isMountedRef.current) {
+      loadClients();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (notification && isMountedRef.current) {
       const timer = setTimeout(() => {
-        setNotification(null);
+        if (isMountedRef.current) {
+          setNotification(null);
+        }
       }, 5000);
       return () => clearTimeout(timer);
     }
   }, [notification]);
 
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message });
-  };
+  const showNotification = useCallback((type: 'success' | 'error', message: string) => {
+    if (isMountedRef.current) {
+      setNotification({ type, message });
+    }
+  }, []);
 
   const loadClients = async () => {
     try {
@@ -162,7 +180,7 @@ export default function PawnPage() {
         setClients(validResults);
         
         if (validResults.length === 0) {
-          showNotification('error', 'មិនរកឃើញអតិថិជនដែលត្រូវគ្នាទេ');
+          showNotification('error', 'មិនរកឃើញអតិថិជនទេ');
         }
       } else {
         setClients([]);
@@ -258,20 +276,43 @@ export default function PawnPage() {
     }, 0);
   };
 
+  const handlePrintPawn = async (pawnId: number) => {
+    if (!isMountedRef.current) return;
+
+    setPrintLoading(prev => ({ ...prev, [pawnId]: true }));
+    
+    try {
+      await printPawn(pawnId, showNotification);
+    } catch (error) {
+      console.error('Print failed:', error);
+      showNotification('error', 'មានបញ្ហាក្នុងការបោះពុម្ព');
+    } finally {
+      if (isMountedRef.current) {
+        setPrintLoading(prev => ({ ...prev, [pawnId]: false }));
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Notification */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center space-x-2 ${
-          notification.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
+      {/* Notification with safe DOM handling */}
+      {notification && isMountedRef.current && (
+        <div 
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center space-x-2 ${
+            notification.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}
+          role="alert"
+        >
           {notification.type === 'success' ? (
             <CheckCircle className="h-5 w-5" />
           ) : (
             <AlertCircle className="h-5 w-5" />
           )}
           <span>{notification.message}</span>
-          <button onClick={() => setNotification(null)}>
+          <button 
+            onClick={() => isMountedRef.current && setNotification(null)}
+            className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-full"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -640,9 +681,24 @@ export default function PawnPage() {
                               </div>
                             </div>
                             
-                            <div className="text-right">
-                              <p className="text-xs text-gray-500 mb-1">ប្រាក់កក់</p>
-                              <p className="text-xl font-bold text-blue-600">${pawn.pawn_deposit}</p>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="text-xs text-gray-500 mb-1">ប្រាក់កក់</p>
+                                <p className="text-xl font-bold text-blue-600">${pawn.pawn_deposit}</p>
+                              </div>
+
+                              <button
+                                onClick={() => handlePrintPawn(pawn.pawn_id)}
+                                disabled={printLoading[pawn.pawn_id]}
+                                className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                              >
+                                {printLoading[pawn.pawn_id] ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Printer className="h-4 w-4" />
+                                )}
+                                <span className="ml-2">បោះពុម្ព</span>
+                              </button>
                             </div>
                           </div>
 

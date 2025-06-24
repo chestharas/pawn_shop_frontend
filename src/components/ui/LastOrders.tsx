@@ -2,7 +2,6 @@
 'use client';
 
 import { useState } from 'react';
-import { ordersApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
 import { 
   Clock,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from './Button';
 import { Card } from './Card';
+import { printOrder } from '@/lib/printOrder'; // Import the print utility
 
 // Order Interfaces
 interface OrderProduct {
@@ -73,307 +73,17 @@ export default function LastOrders({
 }: LastOrdersProps) {
   const [printing, setPrinting] = useState<{ [key: number]: boolean }>({});
 
-  // Print Order Function - Using API
-  // Updated handlePrintOrder function in LastOrders.tsx
+  // Simplified print handler using the utility function
   const handlePrintOrder = async (orderId: number) => {
     setPrinting(prev => ({ ...prev, [orderId]: true }));
     
     try {
-      console.log(`🖨 Starting print for order ID: ${orderId}`);
-      const response = await ordersApi.printOrder(orderId);
-      
-      if (response.code === 200 && response.result) {
-        console.log('✅ Print data received:', response.result);
-        
-        // Transform the backend data to match our print format
-        const transformedData = transformPrintData(response.result);
-        
-        // Create a new window for printing
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          // Generate HTML for printing
-          const printHTML = generatePrintHTML(transformedData);
-          
-          printWindow.document.write(printHTML);
-          printWindow.document.close();
-          
-          // Print after a short delay to ensure content is loaded
-          setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-          }, 500);
-          
-          onNotification('success', 'បានបើកទំព័របោះពុម្ពដោយជោគជ័យ');
-        } else {
-          onNotification('error', 'មិនអាចបើកទំព័របោះពុម្ពបានទេ - browser បានរារាំង popup');
-        }
-      } else {
-        console.log('❌ Print failed:', response);
-        onNotification('error', response.message || 'មានបញ្ហាក្នុងការរៀបចំទិន្នន័យសម្រាប់បោះពុម្ព');
-      }
-    } catch (error: any) {
-      console.error('❌ Error printing order:', error);
-      
-      // Better error handling for print functionality
-      if (error.message?.includes('Unexpected token') || error.message?.includes('JSON')) {
-        onNotification('error', 'Print API មិនត្រឹមត្រូវ - សូមពិនិត្យ backend');
-      } else if (error.response?.status === 404) {
-        onNotification('error', `ការបញ្ជាទិញលេខ ${orderId} មិនត្រូវបានរកឃើញ`);
-      } else if (error.response?.status === 401) {
-        onNotification('error', 'សូមចូលប្រើប្រាស់ម្តងទៀត');
-      } else {
-        onNotification('error', 'មានបញ្ហាក្នុងការបោះពុម្ព');
-      }
+      await printOrder(orderId, onNotification);
+    } catch (error) {
+      // Error handling is already done in the print utility
+      console.error('Print failed:', error);
     } finally {
       setPrinting(prev => ({ ...prev, [orderId]: false }));
-    }
-  };
-
-  // New function to transform backend data to frontend print format
-  const transformPrintData = (backendData: any) => {
-    try {
-      // Calculate totals
-      const subtotal = backendData.products?.reduce((sum: number, item: any) => {
-        return sum + (item.order_amount * item.product_sell_price);
-      }, 0) || 0;
-
-      const totalLabor = backendData.products?.reduce((sum: number, item: any) => {
-        return sum + (item.product_labor_cost || 0);
-      }, 0) || 0;
-
-      const grandTotal = subtotal + totalLabor;
-      const deposit = backendData.order_deposit || 0;
-      const balanceDue = grandTotal - deposit;
-
-      return {
-        header: {
-          title: 'វិក្កយបត្រ',
-          order_id: `ការបញ្ជាទិញលេខ #${backendData.order_id}`,
-          date: backendData.order_date || new Date().toISOString().split('T')[0]
-        },
-        customer: {
-          name: backendData.customer?.customer_name || 'មិនបានបញ្ចូល',
-          phone: backendData.customer?.phone_number || 'មិនបានបញ្ចូល',
-          address: backendData.customer?.address || 'មិនបានបញ្ចូល'
-        },
-        items: backendData.products?.map((product: any) => ({
-          prod_name: product.prod_name || 'មិនបានបញ្ចូល',
-          weight: product.order_weight || '-',
-          quantity: product.order_amount || 0,
-          unit_price: product.product_sell_price || 0,
-          labor_cost: product.product_labor_cost || 0,
-          buy_price: product.product_buy_price || 0,
-          subtotal: (product.order_amount || 0) * (product.product_sell_price || 0)
-        })) || [],
-        totals: {
-          subtotal: subtotal,
-          total_labor: totalLabor,
-          grand_total: grandTotal,
-          deposit: deposit,
-          balance_due: balanceDue
-        },
-        footer: {
-          thank_you: 'អរគុណសម្រាប់ការទិញ!',
-          note: 'សូមរក្សាវិក្កយបត្រនេះសម្រាប់ការយោង។'
-        }
-      };
-    } catch (error) {
-      console.error('❌ Error transforming print data:', error);
-      throw new Error('Failed to transform print data');
-    }
-  };
-
-
-  // Generate Print HTML Function - Enhanced with better error handling
-  const generatePrintHTML = (printData: any) => {
-    try {
-      // Validate print data structure
-      if (!printData || !printData.header || !printData.customer || !printData.items || !printData.totals) {
-        console.error('❌ Invalid print data structure:', printData);
-        throw new Error('Print data is missing required fields');
-      }
-
-      const currentDate = new Date().toLocaleDateString('km-KH', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-
-      return `
-        <!DOCTYPE html>
-        <html lang="km">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>វិក្កយបត្រ #${printData.header.order_id || 'N/A'}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;700&display=swap');
-            
-            body { 
-              font-family: 'Noto Sans Khmer', 'Khmer OS', Arial, sans-serif; 
-              margin: 20px; 
-              line-height: 1.6;
-              color: #333;
-            }
-            .header { 
-              text-align: center; 
-              margin-bottom: 30px; 
-              border-bottom: 2px solid #333;
-              padding-bottom: 20px;
-            }
-            .header h1 {
-              color: #2563eb;
-              margin-bottom: 10px;
-              font-size: 24px;
-            }
-            .order-info { 
-              margin-bottom: 20px; 
-              background-color: #f9f9f9;
-              padding: 15px;
-              border-radius: 5px;
-            }
-            .customer-info { 
-              margin-bottom: 20px; 
-              background-color: #f0f8ff;
-              padding: 15px;
-              border-radius: 5px;
-            }
-            .customer-info h3 {
-              color: #2563eb;
-              margin-bottom: 10px;
-              font-size: 18px;
-            }
-            .items-table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin-bottom: 20px; 
-              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-            .items-table th, .items-table td { 
-              border: 1px solid #ddd; 
-              padding: 12px 8px; 
-              text-align: left; 
-              font-size: 14px;
-            }
-            .items-table th { 
-              background-color: #2563eb; 
-              font-weight: bold;
-              color: white;
-            }
-            .items-table tr:nth-child(even) {
-              background-color: #f9f9f9;
-            }
-            .items-table tr:hover {
-              background-color: #e3f2fd;
-            }
-            .totals { 
-              text-align: right; 
-              margin-bottom: 20px; 
-              background-color: #fff9e6;
-              padding: 15px;
-              border-radius: 5px;
-              border-left: 4px solid #fbbf24;
-            }
-            .totals p {
-              margin: 5px 0;
-              font-size: 14px;
-            }
-            .totals .grand-total {
-              font-size: 18px;
-              font-weight: bold;
-              color: #dc2626;
-              border-top: 2px solid #333;
-              padding-top: 10px;
-              margin-top: 10px;
-            }
-            .footer { 
-              text-align: center; 
-              margin-top: 30px; 
-              font-style: italic; 
-              color: #666;
-              border-top: 1px solid #ddd;
-              padding-top: 20px;
-            }
-            .text-right { text-align: right; }
-            .text-center { text-align: center; }
-            .font-bold { font-weight: bold; }
-            
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-              .header { page-break-inside: avoid; }
-              .customer-info { page-break-inside: avoid; }
-              .totals { page-break-inside: avoid; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>${printData.header.title || 'វិក្កយបត្រ'}</h1>
-            <p><strong>${printData.header.order_id || 'N/A'}</strong></p>
-            <p>កាលបរិច្ចេទបញ្ជាទិញ: ${printData.header.date || 'N/A'}</p>
-            <p>បោះពុម្ពនៅ: ${currentDate}</p>
-          </div>
-          
-          <div class="customer-info">
-            <h3>ព័ត៌មានអតិថិជន:</h3>
-            <p><strong>ឈ្មោះ:</strong> ${printData.customer.name || 'មិនបានបញ្ចូល'}</p>
-            <p><strong>លេខទូរសព្ទ:</strong> ${printData.customer.phone || 'មិនបានបញ្ចូល'}</p>
-            <p><strong>អាសយដ្ឋាន:</strong> ${printData.customer.address || 'មិនបានបញ្ចូល'}</p>
-          </div>
-
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th style="width: 5%">#</th>
-                <th style="width: 25%">ផលិតផល</th>
-                <th style="width: 10%">ទម្ងន់</th>
-                <th style="width: 10%">ចំនួន</th>
-                <th style="width: 12%">តម្លៃលក់</th>
-                <th style="width: 12%">ថ្លៃកម្រធ្វើ</th>
-                <th style="width: 12%">តម្លៃទិញ</th>
-                <th style="width: 14%">សរុប</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${printData.items.map((item: any, index: number) => `
-                <tr>
-                  <td class="text-center">${index + 1}</td>
-                  <td>${item.prod_name || 'មិនបានបញ្ចូល'}</td>
-                  <td class="text-center">${item.weight || '-'}</td>
-                  <td class="text-center">${item.quantity || 0}</td>
-                  <td class="text-right">$${(item.unit_price || 0).toFixed(2)}</td>
-                  <td class="text-right">$${(item.labor_cost || 0).toFixed(2)}</td>
-                  <td class="text-right">$${(item.buy_price || 0).toFixed(2)}</td>
-                  <td class="text-right font-bold">$${(item.subtotal || 0).toFixed(2)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-
-          <div class="totals">
-            <p><strong>សរុបរង: $${(printData.totals.subtotal || 0).toFixed(2)}</strong></p>
-            <p><strong>ថ្លៃកម្រធ្វើសរុប: $${(printData.totals.total_labor || 0).toFixed(2)}</strong></p>
-            <p class="grand-total">សរុបទាំងអស់: $${(printData.totals.grand_total || 0).toFixed(2)}</p>
-            <p><strong>ប្រាក់កក់: $${(printData.totals.deposit || 0).toFixed(2)}</strong></p>
-            <p style="color: ${(printData.totals.balance_due || 0) > 0 ? '#dc2626' : '#16a34a'}; font-weight: bold;">
-              ប្រាក់នៅសល់: $${(printData.totals.balance_due || 0).toFixed(2)}
-            </p>
-          </div>
-
-          <div class="footer">
-            <p><strong>${printData.footer?.thank_you || 'អរគុណសម្រាប់ការទិញ!'}</strong></p>
-            <p>${printData.footer?.note || 'សូមរក្សាវិក្កយបត្រនេះសម្រាប់ការយោង។'}</p>
-          </div>
-        </body>
-        </html>
-      `;
-    } catch (error) {
-      console.error('❌ Error generating print HTML:', error);
-      onNotification('error', 'មានបញ្ហាក្នុងការបង្កើតទំព័របោះពុម្ព');
-      return '<html><body><h1>Error generating print content</h1></body></html>';
     }
   };
 
@@ -540,4 +250,4 @@ export default function LastOrders({
       </div>
     </Card>
   );
-}   
+}
