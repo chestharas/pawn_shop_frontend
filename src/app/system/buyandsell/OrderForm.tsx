@@ -16,7 +16,7 @@ import { Card } from '@/components/ui/Card';
 import ProductDropdown from '@/components/ui/ProductDropdown';
 
 interface Client {
-  cus_id: number;
+  cus_id?: number;
   cus_name: string;
   address: string;
   phone_number: string;
@@ -99,7 +99,7 @@ export default function OrderForm({
       const response = await ordersApi.getNextOrderId();
       
       if (response.code === 200 && response.result) {
-        setNextOrderId(response.result.next_order_id);
+        setNextOrderId(response.result.next_id);
       } else {
         setNextOrderId(1);
       }
@@ -288,7 +288,7 @@ export default function OrderForm({
                 }}
               >
                 {foundClient ? (
-                  `រកឃើញ: ${foundClient.cus_id}`
+                  `រកឃើញ: ${foundClient.cus_id || 'N/A'}`
                 ) : loadingNextId ? (
                   'កំពុងផ្ទុក...'
                 ) : (
