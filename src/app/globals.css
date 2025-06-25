@@ -22,6 +22,7 @@
 
 html {
   font-family: var(--font-sans) !important;
+  height: 100%;
 }
 
 body {
@@ -30,6 +31,11 @@ body {
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  height: 100%;
+  min-height: 100vh;
 }
 
 /* Apply to all elements with high specificity */
@@ -57,4 +63,99 @@ a, li, td, th, small, strong, em {
 
 .font-antonio {
   font-family: var(--font-antonio) !important;
+}
+
+/* Layout fixes for sidebar integration */
+.sidebar-layout {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-x: auto;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Prevent horizontal scrolling issues */
+.main-content {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Sidebar specific styles - Enhanced for true fixed positioning */
+.sidebar-fixed {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 100vh !important;
+  height: 100dvh !important; /* Dynamic viewport height for mobile */
+  z-index: 9999 !important; /* Higher z-index to ensure it stays on top */
+  overflow: hidden !important;
+  will-change: transform !important; /* Optimize for animations */
+  transform-style: preserve-3d !important; /* Ensure hardware acceleration */
+}
+
+/* Force sidebar to never scroll with page content */
+.sidebar-fixed * {
+  position: relative !important;
+}
+
+.sidebar-hidden {
+  transform: translateX(-100%) !important;
+}
+
+.sidebar-open {
+  transform: translateX(0) !important;
+}
+
+/* Mobile behavior: hidden by default, show when open */
+@media (max-width: 1023px) {
+  .sidebar-fixed {
+    transform: translateX(-100%) !important;
+  }
+  
+  .sidebar-fixed.sidebar-open {
+    transform: translateX(0) !important;
+  }
+}
+
+/* Desktop behavior: visible by default unless explicitly hidden */
+@media (min-width: 1024px) {
+  .sidebar-fixed {
+    transform: translateX(0) !important;
+  }
+  
+  .sidebar-fixed.sidebar-hidden {
+    transform: translateX(-100%) !important;
+  }
+}
+
+/* Ensure main content is properly offset and scrollable */
+.content-transition {
+  transition: margin-left 0.3s ease-in-out;
+  position: relative;
+  z-index: 1;
+  background: inherit;
+  overflow-y: auto !important;
+  height: 100vh !important;
+}
+
+/* Fix for dropdown positioning within sidebar */
+.sidebar-dropdown {
+  position: absolute;
+  z-index: 1000;
+}
+
+/* Page content area scrolling */
+.page-content {
+  width: 100%;
+  min-height: 100vh;
+  overflow: visible;
+  position: relative;
 }
