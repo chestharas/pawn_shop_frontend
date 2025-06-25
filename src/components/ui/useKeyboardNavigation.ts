@@ -26,12 +26,19 @@ export function useKeyboardNavigation(options: UseKeyboardNavigationOptions = {}
   // Track component mount state
   useEffect(() => {
     isMountedRef.current = true;
+    
+    // Capture current values to avoid ESLint warnings
+    const currentInputRefs = inputRefs.current;
+    const currentInputOrder = inputOrder.current;
+    const currentDisabledInputs = disabledInputs.current;
+    
     return () => {
       isMountedRef.current = false;
+      
       // Clean up all refs on unmount
-      inputRefs.current.clear();
-      inputOrder.current = [];
-      disabledInputs.current.clear();
+      currentInputRefs.clear();
+      currentInputOrder.length = 0;
+      currentDisabledInputs.clear();
     };
   }, []);
 

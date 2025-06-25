@@ -185,7 +185,7 @@ const ProtectedInput = forwardRef<ProtectedInputRef, ProtectedInputProps>(({
   };
 
   const inputProps = {
-    ref: inputRef as any,
+    ref: inputRef as React.RefObject<HTMLInputElement & HTMLTextAreaElement>,
     value: isVisible ? String(value) : displayValue,
     onChange: handleChange,
     onKeyDown: handleKeyDown,

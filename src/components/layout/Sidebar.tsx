@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
 import { 
   Package, 
   ShoppingCart, 
@@ -11,8 +10,7 @@ import {
   Coins,
   X,
   ChevronLeft,
-  ChevronRight,
-  Bell
+  ChevronRight
 } from 'lucide-react';
 import ProfileDropdown from './ProfileDropdown';
 import { colors, colorCombinations } from '@/lib/colors';
@@ -20,7 +18,7 @@ import { colors, colorCombinations } from '@/lib/colors';
 interface NavItem {
   name: string;
   href: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
 }
 
 const navigation: NavItem[] = [
@@ -59,7 +57,6 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggleCollapse }: SidebarProps) {
-  const { user } = useAuth();
   const pathname = usePathname();
   const [localCollapsed, setLocalCollapsed] = useState(false);
 

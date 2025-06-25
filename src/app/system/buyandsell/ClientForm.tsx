@@ -7,7 +7,6 @@ import {
   User,
   MapPin,
   Phone,
-  Save,
   RotateCcw,
   Search
 } from 'lucide-react';
@@ -15,8 +14,9 @@ import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
+// Use the API Client type directly to avoid conflicts
 interface Client {
-  cus_id: number;
+  cus_id?: number;
   cus_name: string;
   address: string;
   phone_number: string;
@@ -50,19 +50,19 @@ export default function ClientForm({
   onResetBothForms
 }: ClientFormProps) {
   const [searching, setSearching] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState<string>('');
 
   // Refs for keyboard navigation
   const nameInputRef = useRef<HTMLInputElement>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLTextAreaElement>(null);
-  const searchButtonRef = useRef<HTMLButtonElement>(null);
 
   // Function to calculate next ID from existing clients
   const getNextId = (): number => {
     if (clients.length === 0) return 1;
-    const maxId = Math.max(...clients.map(client => client.cus_id));
+    const validIds = clients.map(client => client.cus_id).filter((id): id is number => id !== undefined);
+    if (validIds.length === 0) return 1;
+    const maxId = Math.max(...validIds);
     return maxId + 1;
   };
 
@@ -149,8 +149,17 @@ export default function ClientForm({
       console.log('🔍 Search response:', response);
       
       if (response.code === 200 && response.result && response.result.length > 0) {
-        const client = response.result[0];
-        console.log('Client found:', client);
+        const apiClient = response.result[0];
+        console.log('Client found:', apiClient);
+        
+        // Transform API client to component client format
+        const client: Client = {
+          cus_id: apiClient.cus_id,
+          cus_name: apiClient.cus_name || '',
+          address: apiClient.address || '',
+          phone_number: apiClient.phone_number || ''
+        };
+        
         onClientFound(client);
         
         // Auto-fill the form with found client data
@@ -177,18 +186,20 @@ export default function ClientForm({
         console.log('Clearing form but keeping phone:', newFormData);
         onFormDataChange(newFormData);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error searching client:', error);
       
       // Handle different error cases
-      if (error.response?.status === 404) {
+      const apiError = error as { response?: { status?: number; data?: { message?: string } } };
+      
+      if (apiError.response?.status === 404) {
         onNotification('error', 'មិនរកឃើញអតិថិជនដែលមានលេខទូរសព្ទនេះទេ');
-      } else if (error.response?.status === 400) {
+      } else if (apiError.response?.status === 400) {
         onNotification('error', 'លេខទូរសព្ទមិនត្រឹមត្រូវ');
-      } else if (error.response?.status === 500) {
+      } else if (apiError.response?.status === 500) {
         onNotification('error', 'មានបញ្ហាពីម៉ាស៊ីនបម្រើ សូមព្យាយាមម្តងទៀត');
       } else {
-        const errorMessage = error.response?.data?.message || 'មានបញ្ហាក្នុងការស្វែងរកអតិថិជន';
+        const errorMessage = apiError.response?.data?.message || 'មានបញ្ហាក្នុងការស្វែងរកអតិថិជន';
         onNotification('error', errorMessage);
       }
       
@@ -236,7 +247,6 @@ export default function ClientForm({
       return;
     }
 
-    setSubmitting(true);
     setPhoneError('');
 
     try {
@@ -260,19 +270,18 @@ export default function ClientForm({
         console.log('API returned error:', response);
         onNotification('error', response.message || 'មានបញ្ហាក្នុងការរក្សាទុកអតិថិជន');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving client:', error);
       
-      const errorMessage = error.response?.data?.message || 'មានបញ្ហាក្នុងការរក្សាទុកអតិថិជន';
+      const apiError = error as { response?: { data?: { message?: string } } };
+      const errorMessage = apiError.response?.data?.message || 'មានបញ្ហាក្នុងការរក្សាទុកអតិថិជន';
       onNotification('error', errorMessage);
-    } finally {
-      setSubmitting(false);
     }
   };
 
   // Handle phone number input change with validation
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
+    const value = e.target.value;
     
     // Allow only numbers, spaces, and common phone separators, but remove them for storage
     const digitsOnly = value.replace(/\D/g, '');
@@ -320,14 +329,13 @@ export default function ClientForm({
           phoneInputRef.current?.focus();
           break;
         case 'phone':
-          // If phone is valid, move to address, otherwise stay
           const validation = validateCambodianPhone(formData.phone_number);
           if (validation.isValid) {
             addressInputRef.current?.focus();
           }
           break;
         case 'address':
-          searchButtonRef.current?.focus();
+          // Focus will naturally move to the search button when user tabs
           break;
         default:
           break;
@@ -345,7 +353,7 @@ export default function ClientForm({
           addressInputRef.current?.focus();
           break;
         case 'address':
-          searchButtonRef.current?.focus();
+          // Focus will naturally move to the search button when user tabs
           break;
       }
     }
@@ -387,7 +395,7 @@ export default function ClientForm({
               }}
             >
               {foundClient ? (
-                `រកឃើញ: ${foundClient.cus_id}`
+                `រកឃើញ: ${foundClient.cus_id || 'N/A'}`
               ) : (
                 `${getNextId()}`
               )}
@@ -464,12 +472,6 @@ export default function ClientForm({
                 {phoneError}
               </p>
             )}
-            {/* {formData.phone_number && !phoneError && formData.phone_number.replace(/\D/g, '').length >= 7 && (
-              <p className="mt-1 text-xs text-green-600 flex items-center">
-                <span className="mr-1">✅</span>
-                លេខទូរសព្ទត្រឹមត្រូវ
-              </p>
-            )} */}
           </div>
 
           {/* Address */}
@@ -508,14 +510,12 @@ export default function ClientForm({
         {/* Action Buttons - Pinned to bottom */}
         <div className="flex space-x-3 pt-6 mt-auto">          
           <Button
-            ref={searchButtonRef}
             type="button"
             onClick={handleSearchClient}
             loading={searching}
             disabled={searching || !formData.phone_number?.trim()}
             icon={<Search className="h-4 w-4" />}
             className='flex-1'
-            onKeyDown={(e) => handleKeyDown(e, 'search')}
           >
             ស្វែងរក
           </Button>
@@ -528,16 +528,6 @@ export default function ClientForm({
           >
             លុប
           </Button>
-
-          {/* <Button
-            type="submit"
-            loading={submitting}
-            disabled={submitting || !formData.cus_name?.trim() || !formData.phone_number?.trim() || !!phoneError}
-            icon={<Save className="h-4 w-4" />}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            រក្សាទុក
-          </Button> */}
         </div>
       </form>
     </Card>

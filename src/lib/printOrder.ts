@@ -38,15 +38,40 @@ interface PrintData {
   };
 }
 
+// Backend data interfaces
+interface BackendProduct {
+  prod_name?: string;
+  order_weight?: string;
+  order_amount?: number;
+  product_sell_price?: number;
+  product_labor_cost?: number;
+  product_buy_price?: number;
+}
+
+interface BackendCustomer {
+  customer_name?: string;
+  phone_number?: string;
+  address?: string;
+  cus_id?: number;
+}
+
+interface BackendOrderData {
+  order_id?: number;
+  order_date?: string;
+  order_deposit?: number;
+  customer?: BackendCustomer;
+  products?: BackendProduct[];
+}
+
 // Transform backend data to print format
-export const transformPrintData = (backendData: any): PrintData => {
+export const transformPrintData = (backendData: BackendOrderData): PrintData => {
   try {
     // Calculate totals
-    const subtotal = backendData.products?.reduce((sum: number, item: any) => {
-      return sum + (item.order_amount * item.product_sell_price);
+    const subtotal = backendData.products?.reduce((sum: number, item: BackendProduct) => {
+      return sum + ((item.order_amount || 0) * (item.product_sell_price || 0));
     }, 0) || 0;
 
-    const totalLabor = backendData.products?.reduce((sum: number, item: any) => {
+    const totalLabor = backendData.products?.reduce((sum: number, item: BackendProduct) => {
       return sum + (item.product_labor_cost || 0);
     }, 0) || 0;
 
@@ -66,7 +91,7 @@ export const transformPrintData = (backendData: any): PrintData => {
         address: backendData.customer?.address || 'មិនបានបញ្ចូល',
         customer_id: backendData.customer?.cus_id?.toString() || 'មិនបានបញ្ចូល'
       },
-      items: backendData.products?.map((product: any) => ({
+      items: backendData.products?.map((product: BackendProduct) => ({
         prod_name: product.prod_name || 'មិនបានបញ្ចូល',
         order_weight: product.order_weight || '-',
         order_amount: product.order_amount || 0,
@@ -93,13 +118,6 @@ export const transformPrintData = (backendData: any): PrintData => {
   }
 };
 
-// Calculate total for orders
-const calculateTotal = (orders: any[]): number => {
-  return orders.reduce((total, order) => {
-    return total + (order.product?.order_amount || 0) * (order.product?.product_sell_price || 0);
-  }, 0);
-};
-
 // Generate the HTML for printing using your preferred format
 export const generatePrintHTML = (printData: PrintData, orderId: number): string => {
   try {
@@ -109,14 +127,8 @@ export const generatePrintHTML = (printData: PrintData, orderId: number): string
       throw new Error('Print data is missing required fields');
     }
 
-    const currentDate = new Date().toLocaleDateString('km-KH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
     // Convert items to the format expected by your template
-    const orders = printData.items.map((item, index) => ({
+    const orders = printData.items.map((item) => ({
       product: {
         prod_name: item.prod_name,
         order_weight: item.order_weight,
@@ -290,15 +302,18 @@ export const printOrder = async (
       console.log('❌ Print failed:', response);
       onNotification('error', response.message || 'មានបញ្ហាក្នុងការរៀបចំទិន្នន័យសម្រាប់បោះពុម្ព');
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Error printing order:', error);
     
     // Better error handling for print functionality
-    if (error.message?.includes('Unexpected token') || error.message?.includes('JSON')) {
+    const errorMessage = error instanceof Error ? error.message : '';
+    const errorResponse = error && typeof error === 'object' && 'response' in error ? error.response as { status?: number } : null;
+    
+    if (errorMessage?.includes('Unexpected token') || errorMessage?.includes('JSON')) {
       onNotification('error', 'Print API មិនត្រឹមត្រូវ - សូមពិនិត្យ backend');
-    } else if (error.response?.status === 404) {
+    } else if (errorResponse?.status === 404) {
       onNotification('error', `ការបញ្ជាទិញលេខ ${orderId} មិនត្រូវបានរកឃើញ`);
-    } else if (error.response?.status === 401) {
+    } else if (errorResponse?.status === 401) {
       onNotification('error', 'សូមចូលប្រើប្រាស់ម្តងទៀត');
     } else {
       onNotification('error', 'មានបញ្ហាក្នុងការបោះពុម្ព');

@@ -45,15 +45,89 @@ interface PawnPrintData {
   };
 }
 
+// Backend pawn data interfaces
+interface BackendPawnItem {
+  item_name?: string;
+  item_weight?: string;
+  weight?: string;
+  item_quantity?: number;
+  quantity?: number;
+  item_condition?: string;
+  condition?: string;
+  estimated_value?: number;
+  pawn_amount?: number;
+  subtotal?: number;
+}
+
+interface BackendPawnCustomer {
+  customer_name?: string;
+  cus_name?: string;
+  phone_number?: string;
+  address?: string;
+  cus_id?: number;
+}
+
+interface BackendPawnData {
+  pawn_id?: number;
+  pawn_date?: string;
+  loan_amount?: number;
+  interest_rate?: number;
+  loan_period_days?: number;
+  due_date?: string;
+  interest_amount?: number;
+  status?: string;
+  customer?: BackendPawnCustomer;
+  items?: BackendPawnItem[];
+}
+
+// Pawn product interface for print generation
+interface PawnProduct {
+  prod_name?: string;
+  pawn_weight?: string;
+  pawn_amount?: number;
+  pawn_unit_price?: number;
+}
+
+interface PawnPrintCustomer {
+  cus_id?: number;
+  customer_name?: string;
+  phone_number?: string;
+  address?: string;
+}
+
+interface PawnApiResult {
+  customer?: PawnPrintCustomer;
+  pawn_id?: number;
+  pawn_date?: string;
+  pawn_deposit?: number;
+  products?: PawnProduct[];
+}
+
+interface PawnDataForPrint {
+  cus_id: string | number;
+  customer_name: string;
+  phone_number: string;
+  address: string;
+  pawns: Array<{
+    products: PawnProduct[];
+  }>;
+}
+
+interface PawnDetailsForPrint {
+  pawn_id: number;
+  pawn_date: string;
+  pawn_deposit: number;
+}
+
 // Transform backend data to pawn print format
-export const transformPawnPrintData = (backendData: any): PawnPrintData => {
+export const transformPawnPrintData = (backendData: BackendPawnData): PawnPrintData => {
   try {
     // Calculate totals
-    const totalEstimatedValue = backendData.items?.reduce((sum: number, item: any) => {
+    const totalEstimatedValue = backendData.items?.reduce((sum: number, item: BackendPawnItem) => {
       return sum + (item.estimated_value || 0);
     }, 0) || 0;
 
-    const totalLoanAmount = backendData.items?.reduce((sum: number, item: any) => {
+    const totalLoanAmount = backendData.items?.reduce((sum: number, item: BackendPawnItem) => {
       return sum + (item.pawn_amount || 0);
     }, 0) || 0;
 
@@ -93,7 +167,7 @@ export const transformPawnPrintData = (backendData: any): PawnPrintData => {
         interest_amount: interestAmount,
         status_text: getStatusText(backendData.status || 'active')
       },
-      items: backendData.items?.map((item: any) => ({
+      items: backendData.items?.map((item: BackendPawnItem) => ({
         item_name: item.item_name || 'មិនបានបញ្ចូល',
         weight: item.item_weight || item.weight || '-',
         quantity: item.item_quantity || item.quantity || 0,
@@ -119,29 +193,14 @@ export const transformPawnPrintData = (backendData: any): PawnPrintData => {
   }
 };
 
-// Calculate total for pawn items
-const calculatePawnTotal = (pawnData: any): number => {
-  if (pawnData.pawns && Array.isArray(pawnData.pawns)) {
-    return pawnData.pawns.reduce((total: number, pawn: any) => {
-      if (pawn.products && Array.isArray(pawn.products)) {
-        return total + pawn.products.reduce((pawnTotal: number, product: any) => {
-          return pawnTotal + (product.pawn_amount * product.pawn_unit_price);
-        }, 0);
-      }
-      return total;
-    }, 0);
-  }
-  return 0;
-};
-
 // Generate the HTML for printing pawn receipt using your exact format
-export const generatePawnPrintHTML = (pawnData: any, pawnDetails: any): string => {
+export const generatePawnPrintHTML = (pawnData: PawnDataForPrint, pawnDetails: PawnDetailsForPrint): string => {
   try {
     // Calculate total with the actual API structure
     const calculateTotal = (): number => {
       if (!Array.isArray(pawnData.pawns) || !pawnData.pawns[0]?.products) return 0;
       
-      return pawnData.pawns[0].products.reduce((total: number, product: any) => {
+      return pawnData.pawns[0].products.reduce((total: number, product: PawnProduct) => {
         const amount = product?.pawn_amount || 0;
         const price = product?.pawn_unit_price || 0;
         return total + (amount * price);
@@ -287,7 +346,7 @@ export const generatePawnPrintHTML = (pawnData: any, pawnDetails: any): string =
               </tr>
             </thead>
             <tbody>
-              ${pawnData.pawns[0]?.products?.map((product: any, index: number) => `
+              ${pawnData.pawns[0]?.products?.map((product: PawnProduct, index: number) => `
                 <tr>
                   <td>${index + 1}</td>
                   <td>${product?.prod_name || 'មិនបានបញ្ចូល'}</td>
@@ -348,10 +407,10 @@ export const printPawn = async (
       console.log('✅ Pawn print data received:', response.result);
       
       // The API returns data directly in result object
-      const apiData = response.result;
+      const apiData = response.result as PawnApiResult;
       
       // Map the actual API structure to the print format
-      const pawnData = {
+      const pawnData: PawnDataForPrint = {
         cus_id: apiData.customer?.cus_id || 'N/A',
         customer_name: apiData.customer?.customer_name || 'មិនបានបញ្ចូល',
         phone_number: apiData.customer?.phone_number || 'មិនបានបញ្ចូល',
@@ -361,7 +420,7 @@ export const printPawn = async (
         }]
       };
 
-      const pawnDetails = {
+      const pawnDetails: PawnDetailsForPrint = {
         pawn_id: apiData.pawn_id || pawnId,
         pawn_date: apiData.pawn_date ? new Date(apiData.pawn_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         pawn_deposit: apiData.pawn_deposit || 0
@@ -386,15 +445,18 @@ export const printPawn = async (
       console.log('❌ Pawn print failed:', response);
       onNotification('error', response.message || 'មានបញ្ហាក្នុងការរៀបចំទិន្នន័យសម្រាប់បោះពុម្ព');
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Error printing pawn:', error);
     
     // Better error handling for print functionality
-    if (error.message?.includes('Unexpected token') || error.message?.includes('JSON')) {
+    const errorMessage = error instanceof Error ? error.message : '';
+    const errorResponse = error && typeof error === 'object' && 'response' in error ? error.response as { status?: number } : null;
+    
+    if (errorMessage?.includes('Unexpected token') || errorMessage?.includes('JSON')) {
       onNotification('error', 'Print API មិនត្រឹមត្រូវ - សូមពិនិត្យ backend');
-    } else if (error.response?.status === 404) {
+    } else if (errorResponse?.status === 404) {
       onNotification('error', `ការបញ្ចាំលេខ ${pawnId} មិនត្រូវបានរកឃើញ`);
-    } else if (error.response?.status === 401) {
+    } else if (errorResponse?.status === 401) {
       onNotification('error', 'សូមចូលប្រើប្រាស់ម្តងទៀត');
     } else {
       onNotification('error', 'មានបញ្ហាក្នុងការបោះពុម្ព');

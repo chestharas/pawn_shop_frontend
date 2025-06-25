@@ -1,15 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useSettings } from '@/contexts/SettingsContext';
 import { 
   Save, 
   Eye, 
-  EyeOff, 
-  User, 
-  Lock, 
-  Shield,
   CheckCircle,
   AlertCircle,
   X,
@@ -35,11 +31,8 @@ interface Notification {
 
 export default function SettingsPopup() {
   const { isSettingsOpen, closeSettings } = useSettings();
-  const { user, updateProfile } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [activeTab, setActiveTab] = useState('preferences');
   const [isVisible, setIsVisible] = useState(false);
@@ -143,6 +136,13 @@ export default function SettingsPopup() {
     }
   }, [isSettingsOpen]);
 
+  const handleClose = useCallback(() => {
+    setIsVisible(false);
+    setTimeout(() => {
+      closeSettings();
+    }, 200);
+  }, [closeSettings]);
+
   // Close popup on Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -153,7 +153,7 @@ export default function SettingsPopup() {
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isSettingsOpen]);
+  }, [isSettingsOpen, handleClose]);
 
   // Prevent body scroll when popup is open
   useEffect(() => {
@@ -168,80 +168,8 @@ export default function SettingsPopup() {
     };
   }, [isSettingsOpen]);
 
-  const handleClose = () => {
-    setIsVisible(false);
-    setTimeout(() => {
-      closeSettings();
-    }, 200);
-  };
-
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
-  };
-
-  const handleProfileUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      if (!formData.phone_number.trim()) {
-        showNotification('error', 'សូមបញ្ចូលលេខទូរសព្ទ');
-        return;
-      }
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      showNotification('success', 'ព័ត៌មានត្រូវបានកែប្រែដោយជោគជ័យ');
-    } catch (error) {
-      showNotification('error', 'មានបញ្ហាក្នុងការកែប្រែព័ត៌មាន');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePasswordUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      if (!formData.current_password) {
-        showNotification('error', 'សូមបញ្ចូលពាក្យសម្ងាត់បច្ចុប្បន្ន');
-        return;
-      }
-
-      if (!formData.new_password) {
-        showNotification('error', 'សូមបញ្ចូលពាក្យសម្ងាត់ថ្មី');
-        return;
-      }
-
-      if (formData.new_password !== formData.confirm_password) {
-        showNotification('error', 'ពាក្យសម្ងាត់ថ្មីមិនត្រូវគ្នា');
-        return;
-      }
-
-      if (formData.new_password.length < 6) {
-        showNotification('error', 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច 6 តួអក្សរ');
-        return;
-      }
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Clear password fields
-      setFormData(prev => ({
-        ...prev,
-        current_password: '',
-        new_password: '',
-        confirm_password: ''
-      }));
-
-      showNotification('success', 'ពាក្យសម្ងាត់ត្រូវបានកែប្រែដោយជោគជ័យ');
-    } catch (error) {
-      showNotification('error', 'មានបញ្ហាក្នុងការកែប្រែពាក្យសម្ងាត់');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handlePreferencesUpdate = async (e: React.FormEvent) => {
@@ -252,7 +180,7 @@ export default function SettingsPopup() {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       showNotification('success', 'ការកំណត់ត្រូវបានរក្សាទុកដោយជោគជ័យ');
-    } catch (error) {
+    } catch {
       showNotification('error', 'មានបញ្ហាក្នុងការរក្សាទុកការកំណត់');
     } finally {
       setLoading(false);

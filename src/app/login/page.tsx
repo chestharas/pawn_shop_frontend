@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Eye, EyeOff, Phone, Lock } from 'lucide-react';
 import { config } from '@/lib/config';
@@ -14,7 +13,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { login, isAuthenticated } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -40,8 +38,9 @@ export default function LoginPage() {
     try {
       await login(phone, pass);
       // Don't redirect here - let useEffect handle it
-    } catch (err: any) {
-      setError(err?.message || 'Failed to login.');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to login.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

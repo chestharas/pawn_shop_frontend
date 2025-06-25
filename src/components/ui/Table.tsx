@@ -8,16 +8,16 @@ interface Column {
   label: string;
   width?: string;
   align?: 'left' | 'center' | 'right';
-  render?: (value: any, row: any) => React.ReactNode;
+  render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode;
 }
 
 interface TableProps {
   columns: Column[];
-  data: any[];
+  data: Record<string, unknown>[];
   loading?: boolean;
   emptyMessage?: string;
   emptyIcon?: React.ReactNode;
-  onRowClick?: (row: any) => void;
+  onRowClick?: (row: Record<string, unknown>) => void;
   className?: string;
   maxHeight?: string; // New prop to control scroll height
   scrollThreshold?: number; // New prop to control when scrolling starts
@@ -97,7 +97,7 @@ export const Table: React.FC<TableProps> = ({
             ) : (
               data.map((row, index) => (
                 <tr 
-                  key={row.id || index}
+                  key={(row.id as string | number) || index}
                   className={`border-b transition-colors ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                   style={{ 
                     borderBottomColor: colors.secondary[200],
@@ -126,7 +126,7 @@ export const Table: React.FC<TableProps> = ({
                     >
                       {column.render 
                         ? column.render(row[column.key], row)
-                        : (row[column.key] ?? '-')
+                        : (row[column.key] as string) ?? '-'
                       }
                     </td>
                   ))}

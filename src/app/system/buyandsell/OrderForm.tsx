@@ -1,7 +1,7 @@
 // buyandsell/OrderForm.tsx - Clean Rewrite with ProductDropdown Component
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ordersApi } from '@/lib/api';
 import { 
   Plus,
@@ -112,21 +112,21 @@ export default function OrderForm({
   };
 
   // Reset order form to initial state
-  const resetOrderForm = () => {
+  const resetOrderForm = useCallback(() => {
     setOrderData({
       order_date: new Date().toISOString().split('T')[0],
       order_deposit: 0,
       order_product_detail: []
     });
     fetchNextOrderId();
-  };
+  }, []);
 
   // Register reset function with parent component
   useEffect(() => {
     if (onRegisterResetFunction) {
       onRegisterResetFunction(resetOrderForm);
     }
-  }, [onRegisterResetFunction]);
+  }, [onRegisterResetFunction, resetOrderForm]);
 
   // Load next order ID on component mount
   useEffect(() => {
@@ -161,7 +161,7 @@ export default function OrderForm({
   };
 
   // Update specific field of a product in order
-  const updateOrderProduct = (index: number, field: keyof OrderProductDetail, value: any) => {
+  const updateOrderProduct = (index: number, field: keyof OrderProductDetail, value: string | number) => {
     setOrderData(prev => ({
       ...prev,
       order_product_detail: prev.order_product_detail?.map((item, i) => 
@@ -254,9 +254,10 @@ export default function OrderForm({
       } else {
         onNotification('error', response.message || 'មានបញ្ហាក្នុងការបង្កើតការបញ្ជាទិញ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating order:', error);
-      const errorMessage = error.response?.data?.message || 'មានបញ្ហាក្នុងការបង្កើតការបញ្ជាទិញ';
+      const apiError = error as { response?: { data?: { message?: string } } };
+      const errorMessage = apiError.response?.data?.message || 'មានបញ្ហាក្នុងការបង្កើតការបញ្ជាទិញ';
       onNotification('error', errorMessage);
     } finally {
       setSubmittingOrder(false);
@@ -514,7 +515,7 @@ export default function OrderForm({
                   មិនទាន់មានផលិតផលណាមួយនៅឡើយទេ
                 </p>
                 <p className="text-xs mt-1" style={{ color: colors.secondary[500] }}>
-                  ចុចប៊ូតុង "បន្ថែមផលិតផល" ដើម្បីចាប់ផ្តើម
+                  ចុចប៊ូតុង &quot;បន្ថែមផលិតផល&quot; ដើម្បីចាប់ផ្តើម
                 </p>
               </div>
             )}

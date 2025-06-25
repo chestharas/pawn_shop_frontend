@@ -48,7 +48,7 @@ export function AuthProvider(props: { children: React.ReactNode }) {
           .join('')
       );
       return JSON.parse(jsonPayload);
-    } catch (error) {
+    } catch {
       return null;
     }
   }, []);
@@ -120,8 +120,9 @@ export function AuthProvider(props: { children: React.ReactNode }) {
       } else {
         throw new Error(data.message || 'Login failed');
       }
-    } catch (error: any) {
-      throw new Error(error.message || 'Login failed');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }

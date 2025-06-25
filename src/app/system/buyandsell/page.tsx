@@ -1,19 +1,15 @@
 // buyandsell/page.tsx - Updated with Reset Both Forms Functionality
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { clientsApi, productsApi, ordersApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
-
-// Import UI components
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import LastOrders from '@/components/ui/LastOrders';
 
 // Import local components from the same folder
 import ClientForm from './ClientForm';
 import OrderForm from './OrderForm';
 import Notification from './Notification';
+import LastOrders from '@/components/ui/LastOrders';
 
 // Client interface based on API response
 interface Client {
@@ -83,8 +79,6 @@ interface Order {
 export default function BuyAndSellPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingProducts, setLoadingProducts] = useState(true);
   const [notification, setNotification] = useState<NotificationState | null>(null);
   const [foundClient, setFoundClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -100,49 +94,37 @@ export default function BuyAndSellPage() {
   // Ref to trigger order form reset
   const orderFormResetRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    loadClients();
-    loadProducts();
-    loadLastOrders(); // Load last orders on component mount
-  }, []);
-
-  const loadProducts = async () => {
-    try {
-      setLoadingProducts(true);
-      const response = await productsApi.getAll();
-      if (response.code === 200 && response.result) {
-        setProducts(response.result);
-      }
-    } catch (error: any) {
-      console.error('Error loading products:', error);
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
-
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
   };
 
-  const loadClients = async () => {
+  const loadProducts = useCallback(async () => {
     try {
-      setLoading(true);
+      const response = await productsApi.getAll();
+      if (response.code === 200 && response.result) {
+        setProducts(response.result);
+      }
+    } catch (error: unknown) {
+      console.error('Error loading products:', error);
+    }
+  }, []);
+
+  const loadClients = useCallback(async () => {
+    try {
       const response = await clientsApi.getAll();
       if (response.code === 200 && response.result) {
         setClients(response.result);
       } else {
         showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading clients:', error);
       showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យ');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
 
   // Load Last 3 Orders Function - Using API
-  const loadLastOrders = async () => {
+  const loadLastOrders = useCallback(async () => {
     setLoadingLastOrders(true);
     try {
       const response = await ordersApi.getLastOrders();
@@ -158,15 +140,17 @@ export default function BuyAndSellPage() {
         setLastOrders([]);
         showNotification('error', response.message || 'មិនអាចទាញយកការបញ្ជាទិញចុងក្រោយបានទេ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Error loading last orders:', error);
       
+      const apiError = error as { response?: { status?: number }; message?: string };
+      
       // Check if it's a JSON parsing error (HTML response)
-      if (error.message?.includes('Unexpected token') || error.message?.includes('JSON')) {
+      if (apiError.message?.includes('Unexpected token') || apiError.message?.includes('JSON')) {
         showNotification('error', 'Backend មិនត្រឹមត្រូវ - សូមពិនិត្យ API endpoint');
-      } else if (error.response?.status === 404) {
+      } else if (apiError.response?.status === 404) {
         showNotification('error', 'API endpoint មិនត្រូវបានរកឃើញ');
-      } else if (error.response?.status === 401) {
+      } else if (apiError.response?.status === 401) {
         showNotification('error', 'សូមចូលប្រើប្រាស់ម្តងទៀត');
       } else {
         showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យ');
@@ -176,7 +160,13 @@ export default function BuyAndSellPage() {
     } finally {
       setLoadingLastOrders(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadClients();
+    loadProducts();
+    loadLastOrders(); // Load last orders on component mount
+  }, [loadClients, loadProducts, loadLastOrders]);
 
   const handleClientCreated = () => {
     loadClients();

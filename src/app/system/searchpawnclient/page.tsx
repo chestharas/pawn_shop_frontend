@@ -10,7 +10,6 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
-  DollarSign,
   User,
   Phone,
   Calendar,
@@ -85,6 +84,29 @@ export default function PawnPage() {
   const [printLoading, setPrintLoading] = useState<{ [key: number]: boolean }>({});
   const isMountedRef = useRef(true);
 
+  const showNotification = useCallback((type: 'success' | 'error', message: string) => {
+    if (isMountedRef.current) {
+      setNotification({ type, message });
+    }
+  }, []);
+
+  const loadClients = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await pawnsApi.getClientPawns();
+      if (response.code === 200 && response.result) {
+        setClients(response.result);
+      } else {
+        showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
+      }
+    } catch (error: unknown) {
+      console.error('Error loading clients:', error);
+      showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យអតិថិជន');
+    } finally {
+      setLoading(false);
+    }
+  }, [showNotification]);
+
   // Track component mount state
   useEffect(() => {
     isMountedRef.current = true;
@@ -97,7 +119,7 @@ export default function PawnPage() {
     if (isMountedRef.current) {
       loadClients();
     }
-  }, []);
+  }, [loadClients]);
 
   useEffect(() => {
     if (notification && isMountedRef.current) {
@@ -109,29 +131,6 @@ export default function PawnPage() {
       return () => clearTimeout(timer);
     }
   }, [notification]);
-
-  const showNotification = useCallback((type: 'success' | 'error', message: string) => {
-    if (isMountedRef.current) {
-      setNotification({ type, message });
-    }
-  }, []);
-
-  const loadClients = async () => {
-    try {
-      setLoading(true);
-      const response = await pawnsApi.getClientPawns();
-      if (response.code === 200 && response.result) {
-        setClients(response.result);
-      } else {
-        showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
-      }
-    } catch (error: any) {
-      console.error('Error loading clients:', error);
-      showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យអតិថិជន');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSearch = async (filters: SearchFilters) => {
     const hasActiveSearch = filters.cus_id.trim() || 
@@ -145,7 +144,7 @@ export default function PawnPage() {
       setIsSearchMode(true);
       
       // Build search parameters with validation
-      const searchParams: any = {};
+      const searchParams: { cus_id?: number; cus_name?: string; phone_number?: string } = {};
       
       if (filters.cus_id.trim()) {
         const cusId = parseInt(filters.cus_id.trim());
@@ -188,7 +187,7 @@ export default function PawnPage() {
           showNotification('error', response.message);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error searching clients:', error);
       setClients([]);
       showNotification('error', 'មានបញ្ហាក្នុងការស្វែងរក');
@@ -253,7 +252,7 @@ export default function PawnPage() {
       } else {
         showNotification('error', 'មិនអាចទាញយកព័ត៌មានលម្អិតអតិថិជនបានទេ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading client detail:', error);
       showNotification('error', 'មានបញ្ហាក្នុងការទាញយកព័ត៌មានលម្អិតអតិថិជន');
     } finally {
@@ -268,12 +267,6 @@ export default function PawnPage() {
   const handleBackToClients = () => {
     setShowClientDetail(false);
     setClientDetail(null);
-  };
-
-  const calculatePawnTotal = (pawn: Pawn) => {
-    return pawn.products.reduce((total, product) => {
-      return total + (product.pawn_unit_price * product.pawn_amount);
-    }, 0);
   };
 
   const handlePrintPawn = async (pawnId: number) => {

@@ -7,7 +7,6 @@ import {
   User,
   MapPin,
   Phone,
-  Save,
   RotateCcw,
   Search
 } from 'lucide-react';
@@ -50,7 +49,6 @@ export default function ClientForm({
   onResetBothForms
 }: ClientFormProps) {
   const [searching, setSearching] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState<string>('');
 
   // Refs for keyboard navigation
@@ -167,18 +165,20 @@ export default function ClientForm({
           phone_number: formData.phone_number
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error searching client:', error);
       
       // Handle different error cases
-      if (error.response?.status === 404) {
+      const apiError = error as { response?: { status?: number; data?: { message?: string } } };
+      
+      if (apiError.response?.status === 404) {
         onNotification('error', 'មិនរកឃើញអតិថិជនដែលមានលេខទូរសព្ទនេះទេ');
-      } else if (error.response?.status === 400) {
+      } else if (apiError.response?.status === 400) {
         onNotification('error', 'លេខទូរសព្ទមិនត្រឹមត្រូវ');
-      } else if (error.response?.status === 500) {
+      } else if (apiError.response?.status === 500) {
         onNotification('error', 'មានបញ្ហាពីម៉ាស៊ីនបម្រើ សូមព្យាយាមម្តងទៀត');
       } else {
-        const errorMessage = error.response?.data?.message || 'មានបញ្ហាក្នុងការស្វែងរកអតិថិជន';
+        const errorMessage = apiError.response?.data?.message || 'មានបញ្ហាក្នុងការស្វែងរកអតិថិជន';
         onNotification('error', errorMessage);
       }
       
@@ -219,7 +219,6 @@ export default function ClientForm({
       return;
     }
 
-    setSubmitting(true);
     setPhoneError('');
 
     try {
@@ -239,18 +238,17 @@ export default function ClientForm({
       } else {
         onNotification('error', response.message || 'មានបញ្ហាក្នុងការរក្សាទុកអតិថិជន');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving client:', error);
-      const errorMessage = error.response?.data?.message || 'មានបញ្ហាក្នុងការរក្សាទុកអតិថិជន';
+      const apiError = error as { response?: { data?: { message?: string } } };
+      const errorMessage = apiError.response?.data?.message || 'មានបញ្ហាក្នុងការរក្សាទុកអតិថិជន';
       onNotification('error', errorMessage);
-    } finally {
-      setSubmitting(false);
     }
   };
 
   // Handle phone number input change with validation
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
+    const value = e.target.value;
     
     // Allow only numbers, spaces, and common phone separators, but remove them for storage
     const digitsOnly = value.replace(/\D/g, '');

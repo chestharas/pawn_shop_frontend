@@ -1,7 +1,7 @@
 // pawn/page.tsx - Updated with Reset Both Forms Functionality
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { clientsApi, productsApi, pawnsApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
 
@@ -87,8 +87,6 @@ export default function PawnPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [lastPawns, setLastPawns] = useState<Pawn[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingLastPawns, setLoadingLastPawns] = useState(true);
   const [notification, setNotification] = useState<NotificationState | null>(null);
   const [foundClient, setFoundClient] = useState<Client | null>(null);
@@ -101,51 +99,53 @@ export default function PawnPage() {
   // Ref to trigger pawn form reset
   const pawnFormResetRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    loadClients();
-    loadProducts();
-    loadLastPawns();
-  }, []);
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+  };
 
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
-      setLoadingProducts(true);
       const response = await productsApi.getAll();
       if (response.code === 200 && response.result) {
         setProducts(response.result);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading products:', error);
-    } finally {
-      setLoadingProducts(false);
     }
-  };
+  }, []);
 
   // Real API call for last pawns
-  const loadLastPawns = async () => {
+  const loadLastPawns = useCallback(async () => {
     try {
       setLoadingLastPawns(true);
       const response = await pawnsApi.getLastPawns();
       
       if (response.code === 200 && response.result) {
         // Transform the API response to match our component's expected format
-        const transformedPawns: Pawn[] = response.result.map((pawn: any) => {
-          const statusInfo = calculatePawnStatus(pawn.pawn_info.pawn_expire_date);
+        const transformedPawns: Pawn[] = response.result.map((pawn: unknown) => {
+          const pawnData = pawn as {
+            pawn_info: PawnInfo;
+            client_info: Client;
+            products: PawnProduct[];
+            summary: PawnSummary;
+          };
+          
+          const statusInfo = calculatePawnStatus(pawnData.pawn_info.pawn_expire_date);
           
           return {
             pawn_info: {
-              ...pawn.pawn_info,
+              ...pawnData.pawn_info,
               // Add calculated fields for compatibility
-              loan_amount: pawn.pawn_info.pawn_deposit, // Using deposit as loan amount
+              loan_amount: pawnData.pawn_info.pawn_deposit, // Using deposit as loan amount
               interest_rate: 3, // Default interest rate - you might want to get this from API
               loan_period_days: 30, // Default period - you might want to calculate this
-              due_date: pawn.pawn_info.pawn_expire_date,
+              due_date: pawnData.pawn_info.pawn_expire_date,
               status: statusInfo.status as 'active' | 'redeemed' | 'defaulted' | 'extended',
-              total_amount_due: pawn.pawn_info.total_amount
+              total_amount_due: pawnData.pawn_info.total_amount
             },
-            client_info: pawn.client_info,
+            client_info: pawnData.client_info,
             // Transform products to items for LastPawn component
-            items: pawn.products.map((product: PawnProduct) => ({
+            items: pawnData.products.map((product: PawnProduct) => ({
               item_name: product.prod_name,
               item_id: product.prod_id,
               item_weight: product.pawn_weight,
@@ -157,11 +157,11 @@ export default function PawnPage() {
             })),
             // Transform summary for compatibility
             summary: {
-              total_items: pawn.summary.total_products,
-              total_estimated_value: pawn.summary.total_amount,
-              loan_amount: pawn.summary.deposit_paid,
-              interest_amount: pawn.summary.total_amount * 0.03, // Calculate 3% interest
-              total_due: pawn.summary.total_amount,
+              total_items: pawnData.summary.total_products,
+              total_estimated_value: pawnData.summary.total_amount,
+              loan_amount: pawnData.summary.deposit_paid,
+              interest_amount: pawnData.summary.total_amount * 0.03, // Calculate 3% interest
+              total_due: pawnData.summary.total_amount,
               days_remaining: statusInfo.daysRemaining
             }
           };
@@ -171,34 +171,33 @@ export default function PawnPage() {
       } else {
         showNotification('error', 'មិនអាចទាញយកបញ្ជីការបញ្ចាំបានទេ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading recent pawns:', error);
       showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យការបញ្ចាំ');
     } finally {
       setLoadingLastPawns(false);
     }
-  };
+  }, []);
 
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message });
-  };
-
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
-      setLoading(true);
       const response = await clientsApi.getAll();
       if (response.code === 200 && response.result) {
         setClients(response.result);
       } else {
         showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading clients:', error);
       showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យ');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadClients();
+    loadProducts();
+    loadLastPawns();
+  }, [loadClients, loadProducts, loadLastPawns]);
 
   const handleClientCreated = () => {
     loadClients();

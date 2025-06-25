@@ -6,7 +6,6 @@ import { colors } from '@/lib/colors';
 import { 
   Clock,
   User,
-  Package,
   Printer,
   RefreshCw,
   Calendar,

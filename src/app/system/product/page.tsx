@@ -1,7 +1,6 @@
 'use client';
 
-import FontTest from '@/components/FontTest';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { productsApi } from '@/lib/api';
 import { 
   Edit2, 
@@ -64,19 +63,6 @@ export default function ProductPage() {
     amount: ''
   });
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => {
-        setNotification(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
   };
@@ -88,7 +74,7 @@ export default function ProductPage() {
     return maxId + 1;
   };
 
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
       const response = await productsApi.getAll();
@@ -97,13 +83,26 @@ export default function ProductPage() {
       } else {
         showNotification('error', 'មិនអាចទាញយកបញ្ជីទំនិញបានទេ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading products:', error);
       showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យ');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const resetForm = () => {
     setFormData({ prod_name: '', unit_price: '', amount: '' });
@@ -157,9 +156,10 @@ export default function ProductPage() {
       } else {
         showNotification('error', response.message || 'មានបញ្ហាក្នុងការរក្សាទុកទំនិញ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving product:', error);
-      const errorMessage = error.response?.data?.message || 'មានបញ្ហាក្នុងការរក្សាទុកទំនិញ';
+      const apiError = error as { response?: { data?: { message?: string } } };
+      const errorMessage = apiError.response?.data?.message || 'មានបញ្ហាក្នុងការរក្សាទុកទំនិញ';
       showNotification('error', errorMessage);
     } finally {
       setSubmitting(false);
@@ -187,7 +187,7 @@ export default function ProductPage() {
       } else {
         showNotification('error', 'មិនអាចលុបទំនិញបានទេ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting product:', error);
       showNotification('error', 'មានបញ្ហាក្នុងការលុបទំនិញ');
     } finally {
@@ -207,7 +207,7 @@ export default function ProductPage() {
       label: 'លេខសំគាល់',
       width: '100px',
       align: 'center' as const,
-      render: (value: any) => (
+      render: (value: number) => (
         <span style={{ color: colors.secondary[700], fontWeight: '500' }}>{value}</span>
       )
     },
@@ -215,7 +215,7 @@ export default function ProductPage() {
       key: 'name', // Changed from prod_name to name
       label: 'ឈ្មោះទំនិញ',
       width: '300px', // Give more space for longer product names
-      render: (value: any) => (
+      render: (value: string) => (
         <span className="font-medium" style={{ color: colors.secondary[900] }}>
           {value || '-'}
         </span>
@@ -226,7 +226,7 @@ export default function ProductPage() {
       label: 'តំលៃក្នុងមួយឯកតា',
       width: '140px',
       align: 'center' as const,
-      render: (value: any) => (
+      render: (value: number | null) => (
         <span style={{ color: colors.secondary[700], fontWeight: '500' }}>
           {value ? `${value.toFixed(2)}` : '-'}
         </span>
@@ -237,7 +237,7 @@ export default function ProductPage() {
       label: 'ចំនួន',
       width: '80px',
       align: 'center' as const,
-      render: (value: any) => (
+      render: (value: number | null) => (
         <span style={{ color: colors.secondary[700], fontWeight: '500' }}>
           {value || '-'}
         </span>
@@ -248,7 +248,7 @@ export default function ProductPage() {
       label: 'ប្រតិបត្តិការ',
       width: '120px',
       align: 'center' as const,
-      render: (value: any, row: Product) => (
+      render: (_value: unknown, row: Product) => (
         <div className="flex items-center justify-center space-x-2">
           <ActionButton
             onClick={() => handleEdit(row)}
@@ -321,7 +321,7 @@ export default function ProductPage() {
               >
                 តើអ្នកពិតជាចង់លុបទំនិញ{' '}
                 <span className="font-semibold font-khmer">
-                  "{deleteModal.product?.name}"
+                  &quot;{deleteModal.product?.name}&quot;
                 </span>{' '}
                 មែនទេ?
               </p>

@@ -10,7 +10,6 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
-  DollarSign,
   User,
   Phone,
   Calendar,
@@ -69,23 +68,6 @@ interface SearchFilters {
   phone_number: string;
 }
 
-// Add this function to handle Enter key press
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
 export default function OrderPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientDetail, setClientDetail] = useState<ClientDetail | null>(null);
@@ -104,6 +86,35 @@ export default function OrderPage() {
   const isMountedRef = useRef(true);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
+  const showNotification = useCallback((type: 'success' | 'error', message: string) => {
+    if (isMountedRef.current) {
+      setNotification({ type, message });
+    }
+  }, []);
+
+  const loadClients = useCallback(async () => {
+    if (!isMountedRef.current) return;
+
+    try {
+      setLoading(true);
+      const response = await ordersApi.getClientOrders();
+      if (response.code === 200 && response.result && isMountedRef.current) {
+        setClients(response.result);
+      } else if (isMountedRef.current) {
+        showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
+      }
+    } catch (error: unknown) {
+      console.error('Error loading clients:', error);
+      if (isMountedRef.current) {
+        showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យអតិថិជន');
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [showNotification]);
+
   // Track component mount state
   useEffect(() => {
     isMountedRef.current = true;
@@ -119,7 +130,7 @@ export default function OrderPage() {
     if (isMountedRef.current) {
       loadClients();
     }
-  }, []);
+  }, [loadClients]);
 
   useEffect(() => {
     if (notification && isMountedRef.current) {
@@ -131,35 +142,6 @@ export default function OrderPage() {
       return () => clearTimeout(timer);
     }
   }, [notification]);
-
-  const showNotification = useCallback((type: 'success' | 'error', message: string) => {
-    if (isMountedRef.current) {
-      setNotification({ type, message });
-    }
-  }, []);
-
-  const loadClients = async () => {
-    if (!isMountedRef.current) return;
-
-    try {
-      setLoading(true);
-      const response = await ordersApi.getClientOrders();
-      if (response.code === 200 && response.result && isMountedRef.current) {
-        setClients(response.result);
-      } else if (isMountedRef.current) {
-        showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
-      }
-    } catch (error: any) {
-      console.error('Error loading clients:', error);
-      if (isMountedRef.current) {
-        showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យអតិថិជន');
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-    }
-  };
 
   // Debounced search function
   const debouncedSearch = useCallback((filters: SearchFilters) => {
@@ -181,7 +163,7 @@ export default function OrderPage() {
         setIsSearchMode(true);
         
         // Build search parameters with validation
-        const searchParams: any = {};
+        const searchParams: { cus_id?: number; cus_name?: string; phone_number?: string } = {};
         
         if (filters.cus_id.trim()) {
           const cusId = parseInt(filters.cus_id.trim());
@@ -224,7 +206,7 @@ export default function OrderPage() {
             showNotification('error', response.message);
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error searching clients:', error);
         if (isMountedRef.current) {
           setClients([]);
@@ -254,7 +236,7 @@ export default function OrderPage() {
       } else if (isMountedRef.current) {
         showNotification('error', 'មិនអាចទាញយកព័ត៌មានលម្អិតអតិថិជនបានទេ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading client detail:', error);
       if (isMountedRef.current) {
         showNotification('error', 'មានបញ្ហាក្នុងការទាញយកព័ត៌មានលម្អិតអតិថិជន');
@@ -336,19 +318,6 @@ export default function OrderPage() {
   
   const getActiveSearchCount = () => {
     return Object.values(searchFilters).filter(value => value.trim()).length;
-  };
-
-  const calculateOrderTotal = (order: Order) => {
-    return order.products.reduce((total, product) => {
-      return total + (product.product_sell_price * product.order_amount);
-    }, 0);
-  };
-
-  const calculateOrderProfit = (order: Order) => {
-    return order.products.reduce((total, product) => {
-      const profit = (product.product_sell_price - product.product_buy_price - product.product_labor_cost) * product.order_amount;
-      return total + profit;
-    }, 0);
   };
 
   return (

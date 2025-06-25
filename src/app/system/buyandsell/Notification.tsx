@@ -33,7 +33,7 @@ export default function Notification({ notification, onClose }: NotificationProp
       style={{
         backgroundColor: notification.type === 'success' ? colors.success[50] : colors.error[50],
         color: notification.type === 'success' ? colors.success[800] : colors.error[800],
-        border: `1px solid ${notification.type === 'success' ? colors.success[200] : colors.error[200]}`
+        border: `1px solid ${notification.type === 'success' ? colors.success[500] : colors.error[500]}`
       }}
     >
       {notification.type === 'success' ? (

@@ -1,10 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/lib/auth';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Sidebar from '@/components/layout/Sidebar';
-import { Menu, Bell, Search } from 'lucide-react';
+import { Menu } from 'lucide-react';
 
 import '@/app/globals.css'
 
@@ -15,7 +14,6 @@ export default function SystemLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { user } = useAuth();
 
   return (
     <ProtectedRoute requireAdmin={true}>

@@ -9,8 +9,6 @@ import {
   ChevronDown, 
   ChevronUp, 
   Home, 
-  UserCircle, 
-  Settings, 
   LogOut 
 } from 'lucide-react';
 
@@ -23,6 +21,9 @@ export default function ProfileDropdown({ onClose, isCollapsed = false }: Profil
   const { user, logout } = useAuth();
   const { openSettings } = useSettings();
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Suppress unused variable warning for openSettings
+  void openSettings;
 
   const handleDropdownToggle = () => {
     setShowDropdown(!showDropdown);
@@ -37,17 +38,6 @@ export default function ProfileDropdown({ onClose, isCollapsed = false }: Profil
     logout();
     setShowDropdown(false);
     onClose?.();
-  };
-
-  const handleSettingsClick = () => {
-    setShowDropdown(false);
-    openSettings(); // This will trigger the global settings popup
-    console.log('Opening settings popup...');
-  };
-
-  const handleProfileClick = () => {
-    setShowDropdown(false);
-    console.log('Opening profile...');
   };
 
   return (
