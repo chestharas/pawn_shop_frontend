@@ -230,7 +230,7 @@ export default function BuyAndSellPage() {
 
   return (
     <div 
-      className="h-full overflow-hidden flex flex-col" 
+      className="min-h-screen w-full" 
       style={{ backgroundColor: colors.secondary[50] }}
     >
       {/* Notification */}
@@ -240,11 +240,11 @@ export default function BuyAndSellPage() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 p-2 overflow-auto">
-        <div className="h-full flex flex-col gap-4">
+      <div className="w-full p-2">
+        <div className="w-full flex flex-col gap-4">
           
           {/* Top Row - Client Form and Order Form */}
-          <div className="flex-shrink-0 grid grid-cols-1 xl:grid-cols-3 gap-4" style={{ minHeight: '400px' }}>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4" style={{ minHeight: '400px' }}>
             {/* Left Panel - Client Form (1/3 width on xl screens) */}
             <div className="xl:col-span-1 flex flex-col">
               <ClientForm
@@ -273,7 +273,7 @@ export default function BuyAndSellPage() {
           </div>
 
           {/* Bottom Row - Last Orders Panel */}
-          <div className="flex-shrink-0" style={{ minHeight: '300px' }}>
+          <div className="w-full" style={{ minHeight: '300px' }}>
             <LastOrders
               orders={lastOrders}
               loading={loadingLastOrders}

@@ -269,7 +269,7 @@ export default function ProductPage() {
 
   return (
     <div 
-      className="h-full overflow-hidden flex flex-col" 
+      className="min-h-screen w-full" 
       style={{ backgroundColor: colors.secondary[50] }}
     >
       {/* Delete Confirmation Modal */}
@@ -383,8 +383,8 @@ export default function ProductPage() {
       )}
 
       {/* Main Content - Fit within available space */}
-      <div className="flex-1 p-4 overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
-        <div className="h-full grid grid-cols-1 xl:grid-cols-3 gap-4 max-w-full">
+      <div className="w-full p-4">
+        <div className="w-full grid grid-cols-1 xl:grid-cols-3 gap-4 max-w-full">
           
           {/* Left Panel - Form (1/3 width on xl screens) */}
           <div className="xl:col-span-1 flex flex-col">

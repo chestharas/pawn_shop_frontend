@@ -90,7 +90,7 @@ export default function ProfileDropdown({ onClose, isCollapsed = false }: Profil
         )}
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Dropdown Menu - Bottom positioning to force upward */}
       {showDropdown && (
         <>
           {/* Mobile backdrop */}
@@ -99,12 +99,20 @@ export default function ProfileDropdown({ onClose, isCollapsed = false }: Profil
             onClick={() => setShowDropdown(false)}
           />
           
-          {/* Dropdown Content */}
-          <div className={`absolute bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-40 ${
-            isCollapsed 
-              ? 'bottom-0 left-full ml-2 w-48' 
-              : 'bottom-full left-0 right-0 mb-1'
-          }`}>
+          {/* Dropdown Content - Bottom positioning to force upward */}
+          <div 
+            className="absolute bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
+            style={{
+              position: 'absolute',
+              bottom: '100%', // Position above the parent container
+              left: isCollapsed ? '100%' : '0',
+              marginLeft: isCollapsed ? '8px' : '0',
+              marginBottom: '16px', // Space between dropdown and button
+              width: isCollapsed ? '200px' : '100%',
+              zIndex: 9999,
+              boxShadow: '0 -10px 25px -5px rgba(0, 0, 0, 0.15), 0 -4px 6px -2px rgba(0, 0, 0, 0.05)'
+            }}
+          >
             {/* User Info Header (when collapsed) */}
             {isCollapsed && (
               <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
@@ -136,22 +144,22 @@ export default function ProfileDropdown({ onClose, isCollapsed = false }: Profil
               </Link>
 
               {/* Profile */}
-              <button 
+              {/* <button 
                 onClick={handleProfileClick}
                 className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
               >
                 <UserCircle className="mr-3 h-4 w-4 text-gray-400" />
                 ព័ត៌មានផ្ទាល់ខ្លួន
-              </button>
+              </button> */}
 
               {/* Settings - Triggers Global Popup */}
-              <button 
+              {/* <button 
                 onClick={handleSettingsClick}
                 className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
               >
                 <Settings className="mr-3 h-4 w-4 text-gray-400" />
                 ការកំណត់
-              </button>
+              </button> */}
 
               {/* Divider */}
               <div className="border-t border-gray-100 my-1"></div>

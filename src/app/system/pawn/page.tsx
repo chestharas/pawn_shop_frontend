@@ -254,7 +254,7 @@ export default function PawnPage() {
 
   return (
     <div 
-      className="h-full overflow-hidden flex flex-col" 
+      className="min-h-screen w-full" 
       style={{ backgroundColor: colors.secondary[50] }}
     >
       {/* Notification */}
@@ -264,11 +264,11 @@ export default function PawnPage() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 p-2 overflow-auto">
-        <div className="h-full flex flex-col gap-4">
+      <div className="w-full p-2">
+        <div className="w-full flex flex-col gap-4">
           
           {/* Top Row - Main Forms */}
-          <div className="flex-shrink-0 grid grid-cols-1 xl:grid-cols-3 gap-4" style={{ minHeight: '400px' }}>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4" style={{ minHeight: '400px' }}>
             
             {/* Left Panel - Client Form (1/3 width on xl screens) */}
             <div className="xl:col-span-1 flex flex-col">
@@ -298,7 +298,7 @@ export default function PawnPage() {
           </div>
 
           {/* Bottom Row - Last Pawns Panel */}
-          <div className="flex-shrink-0" style={{ minHeight: '300px' }}>
+          <div className="w-full" style={{ minHeight: '300px' }}>
             <LastPawn
               pawns={lastPawns}
               loading={loadingLastPawns}
