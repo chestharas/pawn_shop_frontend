@@ -34,7 +34,7 @@ export function AuthProvider(props: { children: React.ReactNode }) {
   const isAuthenticated = !!user;
 
   // Hardcoded API URL for now (to avoid env variable issues)
-  const API_URL = 'http://localhost:8000';
+  const API_URL = 'http://localhost:8080';
 
   // Simple token decode function
   const decodeToken = useCallback((token: string) => {

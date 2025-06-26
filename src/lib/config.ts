@@ -1,7 +1,7 @@
 // src/lib/config.ts - Centralized configuration
 export const config = {
   // API Configuration
-  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
   
   // App Configuration
   appName: process.env.NEXT_PUBLIC_APP_NAME || 'Pawn Shop System',
