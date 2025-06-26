@@ -280,7 +280,7 @@ export default function OrderForm({
                 លេខវិក្កយបត្រ
               </label>
               <div 
-                className="w-full px-3 py-2 border rounded-md text-left font-medium"
+                className="w-full px-3 py-2 border rounded-md text-left font-medium "
                 style={{ 
                   backgroundColor: colors.secondary[100],
                   borderColor: colors.secondary[300],
