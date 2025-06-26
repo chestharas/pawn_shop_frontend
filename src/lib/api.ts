@@ -280,7 +280,7 @@ export const ordersApi = {
     return response.data;
   },
 
-  getNextOrderId: async (): Promise<ApiResponse<{ next_id: number }>> => {
+  getNextOrderId: async (): Promise<ApiResponse<{ next_order_id: number }>> => {
     const response = await apiClient.get('/api/order/next-id');
     return response.data;
   },
@@ -291,7 +291,7 @@ export const ordersApi = {
   },
 
   printOrder: async (orderId: number): Promise<ApiResponse> => {
-    const response = await apiClient.get(`/api/orders/print?order_id=${orderId}`);
+    const response = await apiClient.get(`/api/order/print?order_id=${orderId}`);
     return response.data;
   },
 };

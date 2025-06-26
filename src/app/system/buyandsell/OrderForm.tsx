@@ -99,7 +99,7 @@ export default function OrderForm({
       const response = await ordersApi.getNextOrderId();
       
       if (response.code === 200 && response.result) {
-        setNextOrderId(response.result.next_id);
+        setNextOrderId(response.result.next_order_id);
       } else {
         setNextOrderId(1);
       }
@@ -280,7 +280,7 @@ export default function OrderForm({
                 លេខវិក្កយបត្រ
               </label>
               <div 
-                className="w-full px-3 py-2 border rounded-md text-center font-medium"
+                className="w-full px-3 py-2 border rounded-md text-left font-medium"
                 style={{ 
                   backgroundColor: colors.secondary[100],
                   borderColor: colors.secondary[300],
@@ -354,7 +354,7 @@ export default function OrderForm({
               /* Phone number required message */
               <div 
                 className="p-8 text-center border-2 border-dashed rounded-lg"
-                style={{ borderColor: colors.secondary[200], backgroundColor: colors.secondary[25] }}
+                style={{ borderColor: colors.secondary[200], backgroundColor: colors.secondary[50] }}
               >
                 <Phone className="h-8 w-8 mx-auto mb-2" style={{ color: colors.secondary[400] }} />
                 <p className="text-sm" style={{ color: colors.secondary[600] }}>
@@ -451,7 +451,7 @@ export default function OrderForm({
                               value={formatDisplayValue(product.product_sell_price)}
                               onChange={(e) => updateOrderProduct(index, 'product_sell_price', parseInputValue(e.target.value))}
                               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="10.00"
+                              placeholder="0"
                             />
                           </div>
                         </div>
@@ -467,7 +467,7 @@ export default function OrderForm({
                               value={formatDisplayValue(product.product_labor_cost)}
                               onChange={(e) => updateOrderProduct(index, 'product_labor_cost', parseInputValue(e.target.value))}
                               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="5.00"
+                              placeholder="0"
                             />
                           </div>
                         </div>
@@ -483,7 +483,7 @@ export default function OrderForm({
                               value={formatDisplayValue(product.product_buy_price)}
                               onChange={(e) => updateOrderProduct(index, 'product_buy_price', parseInputValue(e.target.value))}
                               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="3.00"
+                              placeholder="0"
                             />
                           </div>
                         </div>

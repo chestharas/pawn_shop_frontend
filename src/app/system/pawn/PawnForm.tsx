@@ -395,44 +395,45 @@ export default function PawnForm({
                 </p>
               </div>
             ) : hasProducts ? (
-              /* Products List */
+              /* Products Table */
               <div className="space-y-4">
-                {pawnData.pawn_product_detail.map((product, index) => (
-                  <div 
-                    key={index}
-                    className="p-4 border rounded-lg bg-white shadow-sm"
-                    style={{ borderColor: colors.secondary[200] }}
-                  >
-                    {/* Product Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-medium flex items-center" style={{ color: colors.secondary[700] }}>
-                        <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-800 rounded-full text-xs font-medium mr-2">
+                {/* Table Header */}
+                <div className="bg-gray-50 border border-gray-200 rounded-t-lg">
+                  <div className="px-4 py-3">
+                    <h3 className="text-lg font-semibold text-gray-900">បញ្ជីផលិតផល</h3>
+                  </div>
+                  
+                  {/* Column Headers */}
+                  <div className="border-t border-gray-200 bg-gray-100">
+                    <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm font-medium text-gray-700">
+                      <div className="col-span-1 text-center">#</div>
+                      <div className="col-span-3">ផលិតផល</div>
+                      <div className="col-span-2 text-center">ទម្ងន់</div>
+                      <div className="col-span-2 text-center">ចំនួន</div>
+                      <div className="col-span-3 text-center">តម្លៃក្នុងមួយឯកតា</div>
+                      <div className="col-span-1 text-center">សកម្មភាព</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Body */}
+                <div className="divide-y divide-gray-200">
+                  {pawnData.pawn_product_detail.map((product, index) => (
+                    <div 
+                      key={index}
+                      className={`grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+                      }`}
+                    >
+                      {/* Row Number */}
+                      <div className="col-span-1 text-center">
+                        <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
                           {index + 1}
                         </span>
-                        ផលិតផលទី {index + 1}
-                      </h4>
-                      <div className="flex items-center space-x-3">
-                        <span className="text-sm font-medium px-3 py-1 bg-green-100 text-green-700 rounded-full">
-                          សរុប: ${(product.pawn_amount * product.pawn_unit_price).toFixed(2)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeProductFromPawn(index)}
-                          className="inline-flex items-center justify-center w-8 h-8 bg-red-100 text-red-600 rounded-full hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
-                          title="លុបផលិតផល"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </button>
                       </div>
-                    </div>
 
-                    {/* Product Fields */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Product Name Dropdown */}
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium mb-2" style={{ color: colors.secondary[700] }}>
-                          ឈ្មោះផលិតផល
-                        </label>
+                      {/* Product Dropdown */}
+                      <div className="col-span-3">
                         <ProductDropdown
                           products={products}
                           value={product.prod_name}
@@ -446,42 +447,31 @@ export default function PawnForm({
                         />
                       </div>
 
-                      {/* Weight/Description */}
-                      <div>
-                        <label className="block text-sm font-medium mb-2" style={{ color: colors.secondary[700] }}>
-                          ទម្ងន់/ការពិពណ៌នា
-                        </label>
+                      {/* Weight */}
+                      <div className="col-span-2">
                         <input
                           type="text"
                           value={product.pawn_weight}
                           onChange={(e) => updatePawnProduct(index, 'pawn_weight', e.target.value)}
-                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          style={{ borderColor: colors.secondary[300] }}
-                          placeholder="ទម្ងន់ ឬ ការពិពណ៌នា"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
+                          placeholder="ទម្ងន់"
                         />
                       </div>
 
                       {/* Amount */}
-                      <div>
-                        <label className="block text-sm font-medium mb-2" style={{ color: colors.secondary[700] }}>
-                          ចំនួន
-                        </label>
+                      <div className="col-span-2">
                         <input
                           type="number"
                           min="0"
                           value={formatDisplayValue(product.pawn_amount)}
                           onChange={(e) => updatePawnProduct(index, 'pawn_amount', parseIntegerValue(e.target.value))}
-                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          style={{ borderColor: colors.secondary[300] }}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
                           placeholder="1"
                         />
                       </div>
 
                       {/* Unit Price */}
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium mb-2" style={{ color: colors.secondary[700] }}>
-                          តម្លៃក្នុងមួយឯកតា
-                        </label>
+                      <div className="col-span-3">
                         <div className="relative">
                           <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
                           <input
@@ -490,30 +480,41 @@ export default function PawnForm({
                             step="0.01"
                             value={formatDisplayValue(product.pawn_unit_price)}
                             onChange={(e) => updatePawnProduct(index, 'pawn_unit_price', parseInputValue(e.target.value))}
-                            className="w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            style={{ borderColor: colors.secondary[300] }}
+                            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0.00"
                           />
                         </div>
                       </div>
+
+                      {/* Action Button */}
+                      <div className="col-span-1 text-center">
+                        <button
+                          type="button"
+                          onClick={() => removeProductFromPawn(index)}
+                          className="inline-flex items-center justify-center w-8 h-8 bg-red-100 text-red-600 rounded-full hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+                          title="លុបផលិតផល"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
 
                 {/* Summary Section */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-6">
                       <div className="text-center">
                         <span className="text-sm font-medium text-gray-600">សរុបផលិតផល: </span>
-                        <span className="text-lg font-bold text-blue-600">
+                        <span className="text-lg font-bold text-gray-600">
                           {pawnData.pawn_product_detail.length} ប្រភេទ
                         </span>
                       </div>
                       
                       <div className="text-center">
                         <span className="text-sm font-medium text-gray-600">តម្លៃសរុប: </span>
-                        <span className="text-lg font-bold text-green-600">
+                        <span className="text-lg font-bold text-gray-600">
                           ${calculateTotalValue().toFixed(2)}
                         </span>
                       </div>
@@ -532,7 +533,7 @@ export default function PawnForm({
                 </div>
               </div>
             ) : (
-              /* No products message */
+              /* No products message - Updated to match OrderForm */
               <div 
                 className="p-8 text-center border-2 border-dashed rounded-lg"
                 style={{ borderColor: colors.secondary[200] }}
@@ -565,6 +566,18 @@ export default function PawnForm({
               </Button>
             </div>
           )}
+
+          {/* Add Product Button */}
+          {/* <div className="mt-4">
+            <button
+              type="button"
+              onClick={addProductToPawn}
+              className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              បន្ថែមផលិតផល
+            </button>
+          </div> */}
         </div>
       </form>
     </Card>
