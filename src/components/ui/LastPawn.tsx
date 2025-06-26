@@ -130,6 +130,15 @@ export default function LastPawn({
     }
   };
 
+  // Function to calculate pawn remaining amount
+  // សរុបត្រូវសង = តម្លៃសរុប - ប្រាក់កក់ (Total Value - Deposit)
+  const calculatePawnRemaining = (pawn: Pawn): number => {
+    const totalValue = pawn.summary.total_estimated_value || 0;
+    const deposit = pawn.summary.loan_amount || 0; // This is actually the deposit (pawn_deposit)
+    
+    return Math.max(0, totalValue - deposit);
+  };
+
   return (
     <Card 
       title="ការបញ្ចាំចុងក្រោយ"
@@ -166,6 +175,7 @@ export default function LastPawn({
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
             {pawns.map((pawn, index) => {
               const statusInfo = getStatusInfo(pawn.pawn_info.status, pawn.pawn_info.due_date);
+              const calculatedPawnRemaining = calculatePawnRemaining(pawn);
               
               return (
                 <div 
@@ -264,25 +274,25 @@ export default function LastPawn({
                       <span className="text-sm font-medium">{pawn.summary.total_items} ច្បាប់</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm" style={{ color: colors.secondary[600] }}>តម្លៃប៉ាន់ស្មាន:</span>
+                      {/* This is fucture work fix in the page | Change form total_estimated_value to total_value */}
+                      <span className="text-sm" style={{ color: colors.secondary[600] }}>តម្លៃសរុប:</span>
                       <span className="text-sm font-medium">${pawn.summary.total_estimated_value.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm" style={{ color: colors.secondary[600] }}>ប្រាក់កម្ចី:</span>
+                      {/* This is future work fix in the page | Change form loan_amount to pawn_deposit */}
+                      <span className="text-sm" style={{ color: colors.secondary[600] }}>ប្រាក់កក់:</span>
                       <span className="text-sm font-medium">${pawn.summary.loan_amount.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm" style={{ color: colors.secondary[600] }}>ការប្រាក់:</span>
-                      <span className="text-sm font-medium">${pawn.summary.interest_amount.toFixed(2)}</span>
-                    </div>
+
                     <div className="flex justify-between border-t pt-2" style={{ borderColor: colors.secondary[200] }}>
+                      {/* Using the calculation function */}
                       <span className="text-sm font-medium" style={{ color: colors.secondary[700] }}>សរុបត្រូវសង:</span>
                       <span 
                         className="text-sm font-bold flex items-center"
                         style={{ color: statusInfo.urgent ? colors.error[600] : colors.success[600] }}
                       >
                         <DollarSign className="h-3 w-3 mr-1" />
-                        {pawn.summary.total_due.toFixed(2)}
+                        {calculatedPawnRemaining.toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -326,4 +336,4 @@ export default function LastPawn({
       </div>
     </Card>
   );
-}
+}      
