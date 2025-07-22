@@ -1,7 +1,7 @@
-// buyandsell/OrderForm.tsx - Clean Rewrite with ProductDropdown Component
+// buyandsell/OrderForm.tsx - Fixed auto-scroll issue
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ordersApi } from '@/lib/api';
 import { 
   Plus,
@@ -50,7 +50,7 @@ interface FormData {
 }
 
 interface OrderFormProps {
-  products: Product[];
+  products?: Product[];
   onNotification: (type: 'success' | 'error', message: string) => void;
   onOrderCreated: () => void;
   formData: FormData;
@@ -59,7 +59,7 @@ interface OrderFormProps {
 }
 
 export default function OrderForm({
-  products,
+  products = [],
   onNotification,
   onOrderCreated,
   formData,
@@ -74,6 +74,12 @@ export default function OrderForm({
     order_deposit: 0,
     order_product_detail: []
   });
+
+  // Ref to control scroll position
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Ensure products is always an array
+  const safeProducts = Array.isArray(products) ? products : [];
 
   // Format display value for number inputs (show empty string instead of 0)
   const formatDisplayValue = (value: number): string => {
@@ -133,8 +139,11 @@ export default function OrderForm({
     fetchNextOrderId();
   }, []);
 
-  // Add new product row to order
+  // Add new product row to order - with scroll position preservation
   const addProductToOrder = () => {
+    // Store current scroll position
+    const currentScrollTop = scrollContainerRef.current?.scrollTop || 0;
+    
     setOrderData(prev => ({
       ...prev,
       order_product_detail: [
@@ -150,6 +159,13 @@ export default function OrderForm({
         }
       ]
     }));
+
+    // Restore scroll position after state update
+    setTimeout(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = currentScrollTop;
+      }
+    }, 0);
   };
 
   // Remove product from order by index
@@ -270,7 +286,13 @@ export default function OrderForm({
   return (
     <Card title="បង្កើតការបញ្ជាទិញ" className="h-full flex flex-col">
       <form onSubmit={handleOrderSubmit} className="flex-1 flex flex-col">
-        <div className="space-y-4 flex-1 overflow-y-auto max-h-96">
+        <div 
+          ref={scrollContainerRef}
+          className="space-y-4 flex-1 overflow-y-auto max-h-96"
+          style={{ 
+            scrollBehavior: 'auto' // Prevent smooth scrolling
+          }}
+        >
           
           {/* Order Header Information */}
           <div className="grid grid-cols-3 gap-4">
@@ -364,12 +386,8 @@ export default function OrderForm({
             ) : hasProducts ? (
               /* Products Table */
               <div className="space-y-4">
-                {/* Table Header */}
-                <div className="bg-gray-50 border border-gray-200 rounded-t-lg">
-                  <div className="px-4 py-3">
-                    <h3 className="text-lg font-semibold text-gray-900">បញ្ជីផលិតផល</h3>
-                  </div>
-                  
+                {/* Table Header - Fixed */}
+                <div className="bg-gray-50 border border-gray-200 rounded-t-lg sticky top-0 z-10">
                   {/* Column Headers */}
                   <div className="border-t border-gray-200 bg-gray-100">
                     <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm font-medium text-gray-700">
@@ -385,7 +403,7 @@ export default function OrderForm({
                   </div>
                 </div>
 
-                {/* Table Body */}
+                {/* Table Body - Scrollable */}
                 <div className="border border-gray-200 border-t-0 rounded-b-lg">
                   <div className="divide-y divide-gray-200">
                     {orderData.order_product_detail.map((product, index) => (
@@ -405,7 +423,7 @@ export default function OrderForm({
                         {/* Product Dropdown */}
                         <div className="col-span-2">
                           <ProductDropdown
-                            products={products}
+                            products={safeProducts}
                             value={product.prod_name}
                             onProductSelect={(productId, productName) => 
                               handleProductSelect(index, productId, productName)

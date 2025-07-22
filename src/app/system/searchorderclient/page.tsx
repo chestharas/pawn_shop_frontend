@@ -20,7 +20,11 @@ import {
   Hash,
   UserCheck,
   RefreshCw,
-  Printer
+  Printer,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 
 interface Client {
@@ -63,9 +67,20 @@ interface Notification {
 }
 
 interface SearchFilters {
-  cus_id: string;
-  cus_name: string;
-  phone_number: string;
+  search_id: string;
+  search_name: string;
+  search_phone: string;
+  search_address: string;
+}
+
+interface PaginationInfo {
+  current_page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+  search_filters?: any;
 }
 
 export default function OrderPage() {
@@ -74,10 +89,13 @@ export default function OrderPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
-    cus_id: '',
-    cus_name: '',
-    phone_number: ''
+    search_id: '',
+    search_name: '',
+    search_phone: '',
+    search_address: ''
   });
   const [notification, setNotification] = useState<Notification | null>(null);
   const [showClientDetail, setShowClientDetail] = useState(false);
@@ -92,14 +110,50 @@ export default function OrderPage() {
     }
   }, []);
 
-  const loadClients = useCallback(async () => {
+  const loadClients = useCallback(async (page: number = 1, resetPagination: boolean = false) => {
     if (!isMountedRef.current) return;
 
     try {
       setLoading(true);
-      const response = await ordersApi.getClientOrders();
+      
+      if (resetPagination) {
+        setCurrentPage(1);
+        page = 1;
+      }
+
+      console.log('Loading clients with page:', page);
+      
+      // Call your updated API method with pagination and limit
+      const response = await ordersApi.getClientOrders({ 
+        page,
+        limit: 10  // Add the limit parameter that your backend expects
+      });
+      
+      console.log('Full API Response:', response);
+      console.log('Pagination from response:', response.pagination);
+      
       if (response.code === 200 && response.result && isMountedRef.current) {
         setClients(response.result);
+        
+        // Set pagination data from API response
+        if (response.pagination) {
+          setPagination(response.pagination);
+          console.log('✅ Pagination successfully set:', response.pagination);
+        } else {
+          console.log('❌ No pagination in response, creating fallback');
+          // Fallback pagination if API doesn't return it
+          const fallbackPagination = {
+            current_page: page,
+            page_size: 10,
+            total_items: response.result.length,
+            total_pages: Math.ceil(response.result.length / 10),
+            has_next: response.result.length >= 10,
+            has_previous: page > 1
+          };
+          setPagination(fallbackPagination);
+        }
+        
+        setCurrentPage(page);
       } else if (isMountedRef.current) {
         showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
       }
@@ -128,7 +182,7 @@ export default function OrderPage() {
 
   useEffect(() => {
     if (isMountedRef.current) {
-      loadClients();
+      loadClients(1, true);
     }
   }, [loadClients]);
 
@@ -143,8 +197,8 @@ export default function OrderPage() {
     }
   }, [notification]);
 
-  // Debounced search function
-  const debouncedSearch = useCallback((filters: SearchFilters) => {
+  // Debounced search function with pagination
+  const debouncedSearch = useCallback((filters: SearchFilters, page: number = 1) => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
@@ -152,9 +206,10 @@ export default function OrderPage() {
     searchTimeoutRef.current = setTimeout(async () => {
       if (!isMountedRef.current) return;
 
-      const hasActiveSearch = filters.cus_id.trim() || 
-                            filters.cus_name.trim() || 
-                            filters.phone_number.trim();
+      const hasActiveSearch = filters.search_id.trim() || 
+                            filters.search_name.trim() || 
+                            filters.search_phone.trim() ||
+                            filters.search_address.trim();
 
       if (!hasActiveSearch) return;
 
@@ -163,45 +218,55 @@ export default function OrderPage() {
         setIsSearchMode(true);
         
         // Build search parameters with validation
-        const searchParams: { cus_id?: number; cus_name?: string; phone_number?: string } = {};
+        const searchParams: { 
+          page: number;
+          search_id?: number; 
+          search_name?: string; 
+          search_phone?: string;
+          search_address?: string;
+        } = { page };
         
-        if (filters.cus_id.trim()) {
-          const cusId = parseInt(filters.cus_id.trim());
+        if (filters.search_id.trim()) {
+          const cusId = parseInt(filters.search_id.trim());
           if (!isNaN(cusId)) {
-            searchParams.cus_id = cusId;
+            searchParams.search_id = cusId;
           }
         }
         
-        if (filters.cus_name.trim()) {
-          searchParams.cus_name = filters.cus_name.trim();
+        if (filters.search_name.trim()) {
+          searchParams.search_name = filters.search_name.trim();
         }
         
-        if (filters.phone_number.trim()) {
-          searchParams.phone_number = filters.phone_number.trim();
+        if (filters.search_phone.trim()) {
+          searchParams.search_phone = filters.search_phone.trim();
         }
 
-        const response = await ordersApi.getClientOrderSearch(searchParams);
+        if (filters.search_address.trim()) {
+          searchParams.search_address = filters.search_address.trim();
+        }
+
+        console.log('Searching with params:', searchParams);
+
+        // Use the same getClientOrders method for search
+        const response = await ordersApi.getClientOrders(searchParams);
         
         if (!isMountedRef.current) return;
+
+        console.log('Search response:', response);
 
         if (response.code === 200) {
           const results = Array.isArray(response.result) ? response.result : [];
           
-          const validResults = results.filter(client => {
-            return client && (
-              (client.cus_id && client.cus_id !== 'N/A') ||
-              (client.cus_name && client.cus_name !== 'N/A') ||
-              (client.phone_number && client.phone_number !== 'N/A')
-            );
-          });
+          setClients(results);
+          setPagination(response.pagination);
+          setCurrentPage(page);
           
-          setClients(validResults);
-          
-          if (validResults.length === 0) {
+          if (results.length === 0 && page === 1) {
             showNotification('error', 'មិនរកឃើញអតិថិជនដែលត្រូវគ្នាទេ');
           }
         } else {
           setClients([]);
+          setPagination(null);
           if (response.message) {
             showNotification('error', response.message);
           }
@@ -210,6 +275,7 @@ export default function OrderPage() {
         console.error('Error searching clients:', error);
         if (isMountedRef.current) {
           setClients([]);
+          setPagination(null);
           showNotification('error', 'មានបញ្ហាក្នុងការស្វែងរក');
         }
       } finally {
@@ -220,8 +286,8 @@ export default function OrderPage() {
     }, 300); // 300ms debounce delay
   }, [showNotification]);
 
-  const handleSearch = useCallback((filters: SearchFilters) => {
-    debouncedSearch(filters);
+  const handleSearch = useCallback((filters: SearchFilters, page: number = 1) => {
+    debouncedSearch(filters, page);
   }, [debouncedSearch]);
 
   const loadClientDetail = async (clientId: number) => {
@@ -272,12 +338,14 @@ export default function OrderPage() {
   };
 
   const handleSearchClick = () => {
-    const hasActiveSearch = searchFilters.cus_id.trim() || 
-                           searchFilters.cus_name.trim() || 
-                           searchFilters.phone_number.trim();
+    const hasActiveSearch = searchFilters.search_id.trim() || 
+                           searchFilters.search_name.trim() || 
+                           searchFilters.search_phone.trim() ||
+                           searchFilters.search_address.trim();
 
     if (hasActiveSearch) {
-      handleSearch(searchFilters);
+      setCurrentPage(1);
+      handleSearch(searchFilters, 1);
     } else {
       showNotification('error', 'សូមបញ្ចូលលក្ខខណ្ឌស្វែងរកយ៉ាងតិច ១');
     }
@@ -291,12 +359,25 @@ export default function OrderPage() {
 
   const clearAllFilters = () => {
     setSearchFilters({
-      cus_id: '',
-      cus_name: '',
-      phone_number: ''
+      search_id: '',
+      search_name: '',
+      search_phone: '',
+      search_address: ''
     });
     setIsSearchMode(false);
-    loadClients();
+    setCurrentPage(1);
+    loadClients(1, true);
+  };
+
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || (pagination && newPage > pagination.total_pages)) return;
+    
+    if (isSearchMode) {
+      handleSearch(searchFilters, newPage);
+    } else {
+      loadClients(newPage);
+    }
   };
 
   const handlePrintOrder = async (orderId: number) => {
@@ -318,6 +399,136 @@ export default function OrderPage() {
   
   const getActiveSearchCount = () => {
     return Object.values(searchFilters).filter(value => value.trim()).length;
+  };
+
+  // Clean, production-ready pagination component matching Products page
+  const PaginationComponent = () => {
+    // Only show if we have clients and pagination data
+    if (!clients.length || !pagination) return null;
+
+    // Don't show pagination if only one page
+    // if (pagination.total_pages <= 1) return null;
+
+    // Generate page numbers for pagination
+    const getPageNumbers = () => {
+      const pages = [];
+      const totalPages = pagination.total_pages;
+      const current = currentPage;
+      
+      if (totalPages <= 5) {
+        // Show all pages if 5 or fewer
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // Always show first 3 pages
+        pages.push(1);
+        pages.push(2);
+        pages.push(3);
+        
+        // Add ellipsis if there's a gap
+        if (totalPages > 4) {
+          pages.push('...');
+        }
+        
+        // Always show last page if it's not already shown
+        if (totalPages > 3) {
+          pages.push(totalPages);
+        }
+      }
+      
+      return pages;
+    };
+
+    // Calculate display range
+    const startItem = ((currentPage - 1) * pagination.page_size) + 1;
+    const endItem = Math.min(currentPage * pagination.page_size, pagination.total_items);
+
+    // Pagination functions
+    const goToPage = (page: number) => {
+      if (page >= 1 && page <= pagination.total_pages) {
+        handlePageChange(page);
+      }
+    };
+
+    const goToFirstPage = () => goToPage(1);
+    const goToLastPage = () => goToPage(pagination.total_pages);
+    const goToPrevPage = () => goToPage(currentPage - 1);
+    const goToNextPage = () => goToPage(currentPage + 1);
+
+    return (
+      <div className="px-4 py-3 border-t border-gray-200 bg-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* Results Info */}
+          <div className="text-sm text-gray-600">
+            បង្ហាញ {startItem}-{endItem} នៃ {pagination.total_items} ធាតុ
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-1">
+            {/* First Page */}
+            <button
+              onClick={goToFirstPage}
+              disabled={!pagination.has_previous || loading || searchLoading}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="ទំព័រដំបូង"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </button>
+
+            {/* Previous Page */}
+            <button
+              onClick={goToPrevPage}
+              disabled={!pagination.has_previous || loading || searchLoading}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="ទំព័រមុន"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            {/* Page Numbers */}
+            <div className="flex items-center gap-1 mx-2">
+              {getPageNumbers().map((page, index) => (
+                <button
+                  key={index}
+                  onClick={() => typeof page === 'number' ? goToPage(page) : undefined}
+                  disabled={page === '...' || loading || searchLoading}
+                  className={`min-w-[32px] h-8 px-3 py-1 text-sm rounded transition-colors ${
+                    page === currentPage
+                      ? 'bg-blue-500 text-white shadow-sm'
+                      : page === '...'
+                      ? 'cursor-default text-gray-400'
+                      : 'hover:bg-gray-100 text-gray-700'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            {/* Next Page */}
+            <button
+              onClick={goToNextPage}
+              disabled={!pagination.has_next || loading || searchLoading}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="ទំព័របន្ទាប់"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+
+            {/* Last Page */}
+            <button
+              onClick={goToLastPage}
+              disabled={!pagination.has_next || loading || searchLoading}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="ទំព័រចុងក្រោយ"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -348,7 +559,7 @@ export default function OrderPage() {
       {!showClientDetail ? (
         // Clients List View
         <div className="bg-white rounded-lg shadow">
-          {/* Enhanced Search Section with 3 Boxes */}
+          {/* Enhanced Search Section with 4 Boxes */}
           <div className="p-6 border-b border-gray-200">
             <div className="space-y-4">
               {/* Search Header */}
@@ -359,8 +570,8 @@ export default function OrderPage() {
                 </h3>
               </div>
 
-              {/* Three Search Boxes */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Four Search Boxes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Customer ID Search */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
@@ -372,13 +583,13 @@ export default function OrderPage() {
                       type="number"
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="បញ្ចូល ID..."
-                      value={searchFilters.cus_id}
-                      onChange={(e) => handleFilterChange('cus_id', e.target.value)}
+                      value={searchFilters.search_id}
+                      onChange={(e) => handleFilterChange('search_id', e.target.value)}
                       onKeyPress={handleKeyPress}
                     />
-                    {searchFilters.cus_id && (
+                    {searchFilters.search_id && (
                       <button
-                        onClick={() => clearSearchFilter('cus_id')}
+                        onClick={() => clearSearchFilter('search_id')}
                         className="absolute inset-y-0 right-0 pr-3 flex items-center"
                       >
                         <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
@@ -398,13 +609,13 @@ export default function OrderPage() {
                       type="text"
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="បញ្ចូលឈ្មោះ..."
-                      value={searchFilters.cus_name}
-                      onChange={(e) => handleFilterChange('cus_name', e.target.value)}
+                      value={searchFilters.search_name}
+                      onChange={(e) => handleFilterChange('search_name', e.target.value)}
                       onKeyPress={handleKeyPress}
                     />
-                    {searchFilters.cus_name && (
+                    {searchFilters.search_name && (
                       <button
-                        onClick={() => clearSearchFilter('cus_name')}
+                        onClick={() => clearSearchFilter('search_name')}
                         className="absolute inset-y-0 right-0 pr-3 flex items-center"
                       >
                         <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
@@ -424,13 +635,39 @@ export default function OrderPage() {
                       type="tel"
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="បញ្ចូលលេខទូរសព្ទ..."
-                      value={searchFilters.phone_number}
-                      onChange={(e) => handleFilterChange('phone_number', e.target.value)}
+                      value={searchFilters.search_phone}
+                      onChange={(e) => handleFilterChange('search_phone', e.target.value)}
                       onKeyPress={handleKeyPress}
                     />
-                    {searchFilters.phone_number && (
+                    {searchFilters.search_phone && (
                       <button
-                        onClick={() => clearSearchFilter('phone_number')}
+                        onClick={() => clearSearchFilter('search_phone')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Address Search */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <MapPin className="h-4 w-4 inline mr-1" />
+                    អាសយដ្ឋាន
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="បញ្ចូលអាសយដ្ឋាន..."
+                      value={searchFilters.search_address}
+                      onChange={(e) => handleFilterChange('search_address', e.target.value)}
+                      onKeyPress={handleKeyPress}
+                    />
+                    {searchFilters.search_address && (
+                      <button
+                        onClick={() => clearSearchFilter('search_address')}
                         className="absolute inset-y-0 right-0 pr-3 flex items-center"
                       >
                         <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
@@ -478,7 +715,12 @@ export default function OrderPage() {
                     </span>
                   </div>
                   <span className="text-sm text-blue-600 font-medium">
-                    រកឃើញ {clients.length} លទ្ធផល
+                    រកឃើញ {pagination?.total_items || clients.length} លទ្ធផល
+                    {pagination && pagination.total_pages > 1 && (
+                      <span className="ml-2">
+                        (ទំព័រ {currentPage} នៃ {pagination.total_pages})
+                      </span>
+                    )}
                   </span>
                 </div>
               )}
@@ -486,14 +728,14 @@ export default function OrderPage() {
           </div>
 
           {/* Clients Content */}
-          <div className="p-6">
+          <div>
             {loading ? (
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                 <span className="ml-2 text-gray-600">កំពុងទាញយកទិន្នន័យ...</span>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div>
                 {clients.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
@@ -519,8 +761,8 @@ export default function OrderPage() {
                 ) : (
                   <div className="overflow-hidden">
                     {/* Table Header */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-t-lg">
-                      <div className="flex items-center justify-between px-4 py-3">
+                    <div className="bg-gray-50 border-b border-gray-200">
+                      <div className="flex items-center justify-between px-6 py-3">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1">
                           <div className="text-sm font-semibold text-gray-700">ID</div>
                           <div className="text-sm font-semibold text-gray-700">ឈ្មោះ</div>
@@ -532,7 +774,7 @@ export default function OrderPage() {
                     </div>
 
                     {/* Table Body */}
-                    <div className="divide-y divide-gray-200 border-l border-r border-b border-gray-200 rounded-b-lg">
+                    <div className="divide-y divide-gray-200 border-l border-r border-gray-200">
                       {clients.map((client, index) => (
                         <div 
                           key={`client-${client.cus_id}-${index}`} 
@@ -540,13 +782,13 @@ export default function OrderPage() {
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                           } hover:bg-blue-50 transition-colors duration-200`}
                         >
-                          <div className="flex items-center justify-between px-4 py-3">
+                          <div className="flex items-center justify-between px-6 py-3">
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1">
                               {/* ID */}
                               <div className="min-w-0">
                                 <span className={`text-sm font-mono ${
-                                  searchFilters.cus_id && client.cus_id && client.cus_id.toString().includes(searchFilters.cus_id)
-                                    ? 'bg-yellow-200 text-gray-900 px-1 rounded'
+                                  searchFilters.search_id && client.cus_id && client.cus_id.toString().includes(searchFilters.search_id)
+                                    ? 'text-gray-900 px-1 rounded'
                                     : 'text-gray-900'
                                 }`}>
                                   {client.cus_id && client.cus_id !== 'N/A' ? client.cus_id : '-'}
@@ -556,8 +798,8 @@ export default function OrderPage() {
                               {/* Name */}
                               <div className="min-w-0">
                                 <span className={`text-sm font-medium truncate block ${
-                                  searchFilters.cus_name && client.cus_name && client.cus_name.toLowerCase().includes(searchFilters.cus_name.toLowerCase())
-                                    ? 'bg-yellow-200 text-gray-900 px-1 rounded'
+                                  searchFilters.search_name && client.cus_name && client.cus_name.toLowerCase().includes(searchFilters.search_name.toLowerCase())
+                                    ? 'text-gray-900 px-1 rounded'
                                     : 'text-gray-900'
                                 }`}>
                                   {client.cus_name && client.cus_name !== 'N/A' ? client.cus_name : '-'}
@@ -567,9 +809,9 @@ export default function OrderPage() {
                               {/* Phone Number */}
                               <div className="min-w-0">
                                 {client.phone_number && client.phone_number !== 'N/A' ? (
-                                  <a href={`tel:${client.phone_number}`} className={`text-sm hover:underline truncate block ${
-                                    searchFilters.phone_number && client.phone_number && client.phone_number.includes(searchFilters.phone_number)
-                                      ? 'bg-yellow-200 text-gray-900 px-1 rounded'
+                                  <a href={`tel:${client.phone_number}`} className={`text-sm truncate block ${
+                                    searchFilters.search_phone && client.phone_number && client.phone_number.includes(searchFilters.search_phone)
+                                      ? 'text-gray-900 px-1 rounded'
                                       : 'text-gray-600 hover:text-blue-600'
                                   }`}>
                                     {client.phone_number}
@@ -581,7 +823,11 @@ export default function OrderPage() {
 
                               {/* Address */}
                               <div className="min-w-0">
-                                <span className="text-sm text-gray-600 truncate block" title={client.address}>
+                                <span className={`text-sm truncate block ${
+                                  searchFilters.search_address && client.address && client.address.toLowerCase().includes(searchFilters.search_address.toLowerCase())
+                                    ? 'text-gray-900 px-1 rounded'
+                                    : 'text-gray-600'
+                                }`} title={client.address}>
                                   {client.address && client.address !== 'N/A' ? client.address : '-'}
                                 </span>
                               </div>
@@ -606,6 +852,9 @@ export default function OrderPage() {
                 )}
               </div>
             )}
+            
+            {/* Pagination Component */}
+            <PaginationComponent />
           </div>
         </div>
       ) : (

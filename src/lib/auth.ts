@@ -90,24 +90,27 @@ export function AuthProvider(props: { children: React.ReactNode }) {
   const login = async (phone_number: string, password: string) => {
     try {
       setLoading(true);
-      
-      // Login API call
-      const response = await fetch(`${API_URL}/sign_in`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number, password })
+  
+      // Build the URL with query parameters
+      const url = `${API_URL}/sign_in?phone_number=${encodeURIComponent(phone_number)}&password=${encodeURIComponent(password)}`;
+  
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'accept': 'application/json'
+        }
       });
-
+  
       if (!response.ok) {
         throw new Error('Login failed');
       }
-
+  
       const data = await response.json();
-      
+  
       if (data.code === 200 && data.result) {
         localStorage.setItem('access_token', data.result.access_token);
         localStorage.setItem('refresh_token', data.result.refresh_token);
-        
+  
         const tokenData = decodeToken(data.result.access_token);
         setUser({
           id: tokenData.id,
@@ -115,7 +118,7 @@ export function AuthProvider(props: { children: React.ReactNode }) {
           role: tokenData.role,
           cus_name: tokenData.sub
         });
-        
+  
         router.push('/system');
       } else {
         throw new Error(data.message || 'Login failed');

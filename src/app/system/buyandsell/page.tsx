@@ -136,12 +136,12 @@ export default function BuyAndSellPage() {
           // showNotification('success', `ទាញយកការបញ្ជាទិញចុងក្រោយ ${response.result.length} ចំនួនបានជោគជ័យ`);
         }
       } else {
-        console.log('❌ No orders found:', response);
+        console.log('No orders found:', response);
         setLastOrders([]);
         showNotification('error', response.message || 'មិនអាចទាញយកការបញ្ជាទិញចុងក្រោយបានទេ');
       }
     } catch (error: unknown) {
-      console.error('❌ Error loading last orders:', error);
+      console.error('Error loading last orders:', error);
       
       const apiError = error as { response?: { status?: number }; message?: string };
       

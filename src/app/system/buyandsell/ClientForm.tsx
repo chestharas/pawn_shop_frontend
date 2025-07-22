@@ -17,7 +17,7 @@ import { Card } from '@/components/ui/Card';
 // Use the API Client type directly to avoid conflicts
 interface Client {
   cus_id?: number;
-  cus_name: string;
+  cus_name: string; 
   address: string;
   phone_number: string;
 }
@@ -177,13 +177,14 @@ export default function ClientForm({
         onNotification('error', 'មិនរកឃើញអតិថិជនដែលមានលេខទូរសព្ទនេះទេ');
         onClientFound(null);
         
-        // Keep the phone number but clear other fields
+        // DON'T clear other fields - keep existing form data intact
+        // Only update the phone number format if needed
         const newFormData = {
-          cus_name: '',
-          address: '',
-          phone_number: formData.phone_number.trim()
+          cus_name: formData.cus_name, // Keep existing name
+          address: formData.address,   // Keep existing address
+          phone_number: formData.phone_number.trim() // Keep the searched phone
         };
-        console.log('Clearing form but keeping phone:', newFormData);
+        console.log('No client found - keeping existing form data:', newFormData);
         onFormDataChange(newFormData);
       }
     } catch (error: unknown) {
@@ -204,13 +205,14 @@ export default function ClientForm({
       }
       
       onClientFound(null);
-      // Keep the phone number but clear other fields when there's an error
+      
+      // DON'T clear other fields when there's an error - keep existing form data intact
       const newFormData = {
-        cus_name: '',
-        address: '',
-        phone_number: formData.phone_number.trim()
+        cus_name: formData.cus_name, // Keep existing name
+        address: formData.address,   // Keep existing address  
+        phone_number: formData.phone_number.trim() // Keep the searched phone
       };
-      console.log('Error: Clearing form but keeping phone:', newFormData);
+      console.log('Error: keeping existing form data:', newFormData);
       onFormDataChange(newFormData);
     } finally {
       setSearching(false);

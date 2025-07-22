@@ -20,7 +20,11 @@ import {
   Hash,
   UserCheck,
   RefreshCw,
-  Printer
+  Printer,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 
 interface Client {
@@ -65,6 +69,17 @@ interface SearchFilters {
   cus_id: string;
   cus_name: string;
   phone_number: string;
+  address: string;
+}
+
+interface PaginationInfo {
+  current_page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+  search_filters?: any;
 }
 
 export default function PawnPage() {
@@ -73,16 +88,20 @@ export default function PawnPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [notification, setNotification] = useState<Notification | null>(null);
-  const [showClientDetail, setShowClientDetail] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     cus_id: '',
     cus_name: '',
-    phone_number: ''
+    phone_number: '',
+    address: ''
   });
+  const [notification, setNotification] = useState<Notification | null>(null);
+  const [showClientDetail, setShowClientDetail] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [printLoading, setPrintLoading] = useState<{ [key: number]: boolean }>({});
   const isMountedRef = useRef(true);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   const showNotification = useCallback((type: 'success' | 'error', message: string) => {
     if (isMountedRef.current) {
@@ -90,20 +109,60 @@ export default function PawnPage() {
     }
   }, []);
 
-  const loadClients = useCallback(async () => {
+  const loadClients = useCallback(async (page: number = 1, resetPagination: boolean = false) => {
+    if (!isMountedRef.current) return;
+
     try {
       setLoading(true);
-      const response = await pawnsApi.getClientPawns();
-      if (response.code === 200 && response.result) {
+      
+      if (resetPagination) {
+        setCurrentPage(1);
+        page = 1;
+      }
+
+      console.log('Loading clients with page:', page);
+      
+      const response = await pawnsApi.getClientPawns({ 
+        page,
+        limit: 10
+      });
+      
+      console.log('Full API Response:', response);
+      console.log('Pagination from response:', response.pagination);
+      
+      if (response.code === 200 && response.result && isMountedRef.current) {
         setClients(response.result);
-      } else {
+        
+        // Set pagination data from API response
+        if (response.pagination) {
+          setPagination(response.pagination);
+          console.log('✅ Pagination successfully set:', response.pagination);
+        } else {
+          console.log('❌ No pagination in response, creating fallback');
+          const fallbackPagination = {
+            current_page: page,
+            page_size: 10,
+            total_items: response.result.length,
+            total_pages: Math.ceil(response.result.length / 10),
+            has_next: response.result.length >= 10,
+            has_previous: page > 1
+          };
+          setPagination(fallbackPagination);
+        }
+        
+        setCurrentPage(page);
+      } else if (isMountedRef.current) {
         showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
       }
     } catch (error: unknown) {
       console.error('Error loading clients:', error);
-      showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យអតិថិជន');
+      if (isMountedRef.current) {
+        showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យអតិថិជន');
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [showNotification]);
 
@@ -112,12 +171,15 @@ export default function PawnPage() {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
     };
   }, []);
 
   useEffect(() => {
     if (isMountedRef.current) {
-      loadClients();
+      loadClients(1, true);
     }
   }, [loadClients]);
 
@@ -132,68 +194,130 @@ export default function PawnPage() {
     }
   }, [notification]);
 
-  const handleSearch = async (filters: SearchFilters) => {
-    const hasActiveSearch = filters.cus_id.trim() || 
-                           filters.cus_name.trim() || 
-                           filters.phone_number.trim();
+  // Debounced search function with pagination
+  const debouncedSearch = useCallback((filters: SearchFilters, page: number = 1) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
 
-    if (!hasActiveSearch) return;
+    searchTimeoutRef.current = setTimeout(async () => {
+      if (!isMountedRef.current) return;
+
+      const hasActiveSearch = filters.cus_id.trim() || 
+                            filters.cus_name.trim() || 
+                            filters.phone_number.trim() ||
+                            filters.address.trim();
+
+      if (!hasActiveSearch) return;
+
+      try {
+        setSearchLoading(true);
+        setIsSearchMode(true);
+        
+        // Build search parameters with validation
+        const searchParams: { 
+          page: number;
+          cus_id?: number; 
+          search_name?: string; 
+          search_phone?: string;
+          search_address?: string;
+        } = { page };
+        
+        if (filters.cus_id.trim()) {
+          const cusId = parseInt(filters.cus_id.trim());
+          if (!isNaN(cusId)) {
+            searchParams.cus_id = cusId;
+          }
+        }
+        
+        if (filters.cus_name.trim()) {
+          searchParams.search_name = filters.cus_name.trim();
+        }
+        
+        if (filters.phone_number.trim()) {
+          searchParams.search_phone = filters.phone_number.trim();
+        }
+
+        if (filters.address.trim()) {
+          searchParams.search_address = filters.address.trim();
+        }
+
+        console.log('Searching with params:', searchParams);
+
+        // Use the same getClientPawns method for search
+        const response = await pawnsApi.getClientPawns(searchParams);
+        
+        if (!isMountedRef.current) return;
+
+        console.log('Search response:', response);
+
+        if (response.code === 200) {
+          const results = Array.isArray(response.result) ? response.result : [];
+          
+          setClients(results);
+          setPagination(response.pagination);
+          setCurrentPage(page);
+          
+          if (results.length === 0 && page === 1) {
+            showNotification('error', 'មិនរកឃើញអតិថិជនដែលត្រូវគ្នាទេ');
+          }
+        } else {
+          setClients([]);
+          setPagination(null);
+          if (response.message) {
+            showNotification('error', response.message);
+          }
+        }
+      } catch (error: unknown) {
+        console.error('Error searching clients:', error);
+        if (isMountedRef.current) {
+          setClients([]);
+          setPagination(null);
+          showNotification('error', 'មានបញ្ហាក្នុងការស្វែងរក');
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setSearchLoading(false);
+        }
+      }
+    }, 300); // 300ms debounce delay
+  }, [showNotification]);
+
+  const handleSearch = useCallback((filters: SearchFilters, page: number = 1) => {
+    debouncedSearch(filters, page);
+  }, [debouncedSearch]);
+
+  const loadClientDetail = async (clientId: number) => {
+    if (!isMountedRef.current) return;
 
     try {
-      setSearchLoading(true);
-      setIsSearchMode(true);
-      
-      // Build search parameters with validation
-      const searchParams: { cus_id?: number; cus_name?: string; phone_number?: string } = {};
-      
-      if (filters.cus_id.trim()) {
-        const cusId = parseInt(filters.cus_id.trim());
-        if (!isNaN(cusId)) {
-          searchParams.cus_id = cusId;
-        }
-      }
-      
-      if (filters.cus_name.trim()) {
-        searchParams.cus_name = filters.cus_name.trim();
-      }
-      
-      if (filters.phone_number.trim()) {
-        searchParams.phone_number = filters.phone_number.trim();
-      }
-
-      const response = await pawnsApi.getClientPawnSearch(searchParams);
-      
-      if (response.code === 200) {
-        // Ensure we have a valid array result and filter out invalid entries
-        const results = Array.isArray(response.result) ? response.result : [];
-        
-        // Filter out entries where all fields are null/undefined/N/A
-        const validResults = results.filter(client => {
-          return client && (
-            (client.cus_id && client.cus_id !== 'N/A') ||
-            (client.cus_name && client.cus_name !== 'N/A') ||
-            (client.phone_number && client.phone_number !== 'N/A')
-          );
-        });
-        
-        setClients(validResults);
-        
-        if (validResults.length === 0) {
-          showNotification('error', 'មិនរកឃើញអតិថិជនទេ');
-        }
-      } else {
-        setClients([]);
-        if (response.message) {
-          showNotification('error', response.message);
-        }
+      setDetailLoading(true);
+      const response = await pawnsApi.getClientPawnById(clientId.toString());
+      if (response.code === 200 && response.result && isMountedRef.current) {
+        setClientDetail(response.result);
+        setShowClientDetail(true);
+      } else if (isMountedRef.current) {
+        showNotification('error', 'មិនអាចទាញយកព័ត៌មានលម្អិតអតិថិជនបានទេ');
       }
     } catch (error: unknown) {
-      console.error('Error searching clients:', error);
-      setClients([]);
-      showNotification('error', 'មានបញ្ហាក្នុងការស្វែងរក');
+      console.error('Error loading client detail:', error);
+      if (isMountedRef.current) {
+        showNotification('error', 'មានបញ្ហាក្នុងការទាញយកព័ត៌មានលម្អិតអតិថិជន');
+      }
     } finally {
-      setSearchLoading(false);
+      if (isMountedRef.current) {
+        setDetailLoading(false);
+      }
     }
+  };
+
+  const handleViewMore = (client: Client) => {
+    loadClientDetail(client.cus_id);
+  };
+
+  const handleBackToClients = () => {
+    setShowClientDetail(false);
+    setClientDetail(null);
   };
 
   const handleFilterChange = (field: keyof SearchFilters, value: string) => {
@@ -213,10 +337,12 @@ export default function PawnPage() {
   const handleSearchClick = () => {
     const hasActiveSearch = searchFilters.cus_id.trim() || 
                            searchFilters.cus_name.trim() || 
-                           searchFilters.phone_number.trim();
+                           searchFilters.phone_number.trim() ||
+                           searchFilters.address.trim();
 
     if (hasActiveSearch) {
-      handleSearch(searchFilters);
+      setCurrentPage(1);
+      handleSearch(searchFilters, 1);
     } else {
       showNotification('error', 'សូមបញ្ចូលលក្ខខណ្ឌស្វែងរកយ៉ាងតិច ១');
     }
@@ -232,41 +358,23 @@ export default function PawnPage() {
     setSearchFilters({
       cus_id: '',
       cus_name: '',
-      phone_number: ''
+      phone_number: '',
+      address: ''
     });
     setIsSearchMode(false);
-    loadClients();
+    setCurrentPage(1);
+    loadClients(1, true);
   };
 
-  const getActiveSearchCount = () => {
-    return Object.values(searchFilters).filter(value => value.trim()).length;
-  };
-
-  const loadClientDetail = async (clientId: number) => {
-    try {
-      setDetailLoading(true);
-      const response = await pawnsApi.getClientPawnById(clientId.toString());
-      if (response.code === 200 && response.result) {
-        setClientDetail(response.result);
-        setShowClientDetail(true);
-      } else {
-        showNotification('error', 'មិនអាចទាញយកព័ត៌មានលម្អិតអតិថិជនបានទេ');
-      }
-    } catch (error: unknown) {
-      console.error('Error loading client detail:', error);
-      showNotification('error', 'មានបញ្ហាក្នុងការទាញយកព័ត៌មានលម្អិតអតិថិជន');
-    } finally {
-      setDetailLoading(false);
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || (pagination && newPage > pagination.total_pages)) return;
+    
+    if (isSearchMode) {
+      handleSearch(searchFilters, newPage);
+    } else {
+      loadClients(newPage);
     }
-  };
-
-  const handleViewMore = (client: Client) => {
-    loadClientDetail(client.cus_id);
-  };
-
-  const handleBackToClients = () => {
-    setShowClientDetail(false);
-    setClientDetail(null);
   };
 
   const handlePrintPawn = async (pawnId: number) => {
@@ -284,6 +392,140 @@ export default function PawnPage() {
         setPrintLoading(prev => ({ ...prev, [pawnId]: false }));
       }
     }
+  };
+  
+  const getActiveSearchCount = () => {
+    return Object.values(searchFilters).filter(value => value.trim()).length;
+  };
+
+  // Clean, production-ready pagination component matching Products page
+  const PaginationComponent = () => {
+    // Only show if we have clients and pagination data
+    if (!clients.length || !pagination) return null;
+
+    // Don't show pagination if only one page
+    // if (pagination.total_pages <= 1) return null;
+
+    // Generate page numbers for pagination
+    const getPageNumbers = () => {
+      const pages = [];
+      const totalPages = pagination.total_pages;
+      const current = currentPage;
+      
+      if (totalPages <= 5) {
+        // Show all pages if 5 or fewer
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // Always show first 3 pages
+        pages.push(1);
+        pages.push(2);
+        pages.push(3);
+        
+        // Add ellipsis if there's a gap
+        if (totalPages > 4) {
+          pages.push('...');
+        }
+        
+        // Always show last page if it's not already shown
+        if (totalPages > 3) {
+          pages.push(totalPages);
+        }
+      }
+      
+      return pages;
+    };
+
+    // Calculate display range
+    const startItem = ((currentPage - 1) * pagination.page_size) + 1;
+    const endItem = Math.min(currentPage * pagination.page_size, pagination.total_items);
+
+    // Pagination functions
+    const goToPage = (page: number) => {
+      if (page >= 1 && page <= pagination.total_pages) {
+        handlePageChange(page);
+      }
+    };
+
+    const goToFirstPage = () => goToPage(1);
+    const goToLastPage = () => goToPage(pagination.total_pages);
+    const goToPrevPage = () => goToPage(currentPage - 1);
+    const goToNextPage = () => goToPage(currentPage + 1);
+
+    return (
+      <div className="px-4 py-3 border-t border-gray-200 bg-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* Results Info */}
+          <div className="text-sm text-gray-600">
+            បង្ហាញ {startItem}-{endItem} នៃ {pagination.total_items} ធាតុ
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-1">
+            {/* First Page */}
+            <button
+              onClick={goToFirstPage}
+              disabled={!pagination.has_previous || loading || searchLoading}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="ទំព័រដំបូង"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </button>
+
+            {/* Previous Page */}
+            <button
+              onClick={goToPrevPage}
+              disabled={!pagination.has_previous || loading || searchLoading}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="ទំព័រមុន"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            {/* Page Numbers */}
+            <div className="flex items-center gap-1 mx-2">
+              {getPageNumbers().map((page, index) => (
+                <button
+                  key={index}
+                  onClick={() => typeof page === 'number' ? goToPage(page) : undefined}
+                  disabled={page === '...' || loading || searchLoading}
+                  className={`min-w-[32px] h-8 px-3 py-1 text-sm rounded transition-colors ${
+                    page === currentPage
+                      ? 'bg-blue-500 text-white shadow-sm'
+                      : page === '...'
+                      ? 'cursor-default text-gray-400'
+                      : 'hover:bg-gray-100 text-gray-700'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            {/* Next Page */}
+            <button
+              onClick={goToNextPage}
+              disabled={!pagination.has_next || loading || searchLoading}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="ទំព័របន្ទាប់"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+
+            {/* Last Page */}
+            <button
+              onClick={goToLastPage}
+              disabled={!pagination.has_next || loading || searchLoading}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="ទំព័រចុងក្រោយ"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -314,7 +556,7 @@ export default function PawnPage() {
       {!showClientDetail ? (
         // Clients List View
         <div className="bg-white rounded-lg shadow">
-          {/* Enhanced Search Section with 3 Boxes */}
+          {/* Enhanced Search Section with 4 Boxes */}
           <div className="p-6 border-b border-gray-200">
             <div className="space-y-4">
               {/* Search Header */}
@@ -325,8 +567,8 @@ export default function PawnPage() {
                 </h3>
               </div>
 
-              {/* Three Search Boxes */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Four Search Boxes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Customer ID Search */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
@@ -404,6 +646,32 @@ export default function PawnPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Address Search */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <MapPin className="h-4 w-4 inline mr-1" />
+                    អាសយដ្ឋាន
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="បញ្ចូលអាសយដ្ឋាន..."
+                      value={searchFilters.address}
+                      onChange={(e) => handleFilterChange('address', e.target.value)}
+                      onKeyPress={handleKeyPress}
+                    />
+                    {searchFilters.address && (
+                      <button
+                        onClick={() => clearSearchFilter('address')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Search Buttons */}
@@ -444,7 +712,12 @@ export default function PawnPage() {
                     </span>
                   </div>
                   <span className="text-sm text-blue-600 font-medium">
-                    រកឃើញ {clients.length} លទ្ធផល
+                    រកឃើញ {pagination?.total_items || clients.length} លទ្ធផល
+                    {pagination && pagination.total_pages > 1 && (
+                      <span className="ml-2">
+                        (ទំព័រ {currentPage} នៃ {pagination.total_pages})
+                      </span>
+                    )}
                   </span>
                 </div>
               )}
@@ -452,14 +725,14 @@ export default function PawnPage() {
           </div>
 
           {/* Clients Content */}
-          <div className="p-6">
+          <div>
             {loading ? (
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                 <span className="ml-2 text-gray-600">កំពុងទាញយកទិន្នន័យ...</span>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div>
                 {clients.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
@@ -485,8 +758,8 @@ export default function PawnPage() {
                 ) : (
                   <div className="overflow-hidden">
                     {/* Table Header */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-t-lg">
-                      <div className="flex items-center justify-between px-4 py-3">
+                    <div className="bg-gray-50 border-b border-gray-200">
+                      <div className="flex items-center justify-between px-6 py-3">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1">
                           <div className="text-sm font-semibold text-gray-700">ID</div>
                           <div className="text-sm font-semibold text-gray-700">ឈ្មោះ</div>
@@ -498,7 +771,7 @@ export default function PawnPage() {
                     </div>
 
                     {/* Table Body */}
-                    <div className="divide-y divide-gray-200 border-l border-r border-b border-gray-200 rounded-b-lg">
+                    <div className="divide-y divide-gray-200 border-l border-r border-gray-200">
                       {clients.map((client, index) => (
                         <div 
                           key={`client-${client.cus_id}-${index}`} 
@@ -506,13 +779,13 @@ export default function PawnPage() {
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                           } hover:bg-blue-50 transition-colors duration-200`}
                         >
-                          <div className="flex items-center justify-between px-4 py-3">
+                          <div className="flex items-center justify-between px-6 py-3">
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1">
                               {/* ID */}
                               <div className="min-w-0">
                                 <span className={`text-sm font-mono ${
                                   searchFilters.cus_id && client.cus_id && client.cus_id.toString().includes(searchFilters.cus_id)
-                                    ? 'bg-yellow-200 text-gray-900 px-1 rounded'
+                                    ? 'text-gray-900 px-1 rounded'
                                     : 'text-gray-900'
                                 }`}>
                                   {client.cus_id && client.cus_id !== 'N/A' ? client.cus_id : '-'}
@@ -523,7 +796,7 @@ export default function PawnPage() {
                               <div className="min-w-0">
                                 <span className={`text-sm font-medium truncate block ${
                                   searchFilters.cus_name && client.cus_name && client.cus_name.toLowerCase().includes(searchFilters.cus_name.toLowerCase())
-                                    ? 'bg-yellow-200 text-gray-900 px-1 rounded'
+                                    ? 'text-gray-900 px-1 rounded'
                                     : 'text-gray-900'
                                 }`}>
                                   {client.cus_name && client.cus_name !== 'N/A' ? client.cus_name : '-'}
@@ -533,9 +806,9 @@ export default function PawnPage() {
                               {/* Phone Number */}
                               <div className="min-w-0">
                                 {client.phone_number && client.phone_number !== 'N/A' ? (
-                                  <a href={`tel:${client.phone_number}`} className={`text-sm hover:underline truncate block ${
+                                  <a href={`tel:${client.phone_number}`} className={`text-sm truncate block ${
                                     searchFilters.phone_number && client.phone_number && client.phone_number.includes(searchFilters.phone_number)
-                                      ? 'bg-yellow-200 text-gray-900 px-1 rounded'
+                                      ? 'text-gray-900 px-1 rounded'
                                       : 'text-gray-600 hover:text-blue-600'
                                   }`}>
                                     {client.phone_number}
@@ -547,7 +820,11 @@ export default function PawnPage() {
 
                               {/* Address */}
                               <div className="min-w-0">
-                                <span className="text-sm text-gray-600 truncate block" title={client.address}>
+                                <span className={`text-sm truncate block ${
+                                  searchFilters.address && client.address && client.address.toLowerCase().includes(searchFilters.address.toLowerCase())
+                                    ? 'text-gray-900 px-1 rounded'
+                                    : 'text-gray-600'
+                                }`} title={client.address}>
                                   {client.address && client.address !== 'N/A' ? client.address : '-'}
                                 </span>
                               </div>
@@ -572,10 +849,13 @@ export default function PawnPage() {
                 )}
               </div>
             )}
+            
+            {/* Pagination Component */}
+            <PaginationComponent />
           </div>
         </div>
       ) : (
-        // Client Detail View (unchanged)
+        // Client Detail View with Print Button State
         <div className="space-y-6">
           {detailLoading ? (
             <div className="bg-white rounded-lg shadow p-6">
@@ -646,117 +926,114 @@ export default function PawnPage() {
                 </div>
               </div>
 
-              {/* Pawn List */}
-              <div className="bg-white rounded-lg shadow">
-                <div className="p-6">
-                  {clientDetail.pawns.length === 0 ? (
-                    <div className="text-center py-12">
-                      <ShoppingCart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 text-lg">មិនមានកម្ម័ងទេ</p>
-                      <p className="text-gray-400 text-sm mt-2">កម្ម័ងនឹងបង្ហាញនៅទីនេះ នៅពេលដែលមានការបញ្ជាទិញ</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">  
-                      {clientDetail.pawns.map((pawn) => (
-                        <div key={pawn.pawn_id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                          {/* Enhanced Pawn Header */}
-                          <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                                <ShoppingCart className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <div>
-                                <h4 className="text-lg font-semibold text-gray-900">កម្ម័ង #{pawn.pawn_id}</h4>
-                                <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
-                                  <Calendar className="h-4 w-4" />
-                                  <span>{new Date(pawn.pawn_date).toLocaleDateString('km-KH')}</span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <p className="text-xs text-gray-500 mb-1">ប្រាក់កក់</p>
-                                <p className="text-xl font-bold text-blue-600">${pawn.pawn_deposit}</p>
-                              </div>
+              {/* Pawn List with Print Button State */}
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <ShoppingCart className="h-5 w-5 mr-2 text-blue-600" />
+                    ប្រវត្តិកម្ម័ង
+                  </h3>
+                </div>
 
-                              <button
-                                onClick={() => handlePrintPawn(pawn.pawn_id)}
-                                disabled={printLoading[pawn.pawn_id]}
-                                className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
-                              >
-                                {printLoading[pawn.pawn_id] ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Printer className="h-4 w-4" />
-                                )}
-                                <span className="ml-2">បោះពុម្ព</span>
-                              </button>
-                            </div>
+                <div className="divide-y divide-gray-100">
+                  {clientDetail.pawns.map((pawn) => (
+                    <div key={pawn.pawn_id} className="p-6">
+                      {/* Enhanced Pawn Header */}
+                      <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                            <ShoppingCart className="h-5 w-5 text-blue-600" />
                           </div>
-
-                          {/* Products Section */}
-                          <div className="p-6">
-                            <div className="space-y-4">
-                              <div className="flex items-center justify-between">
-                                <h5 className="text-lg font-semibold text-gray-900 flex items-center">
-                                  <Package className="h-5 w-5 mr-2 text-blue-600" />
-                                  បញ្ជីទំនិញ
-                                </h5>
-                                <span className="text-sm text-gray-500">({pawn.products.length} ប្រភេទ)</span>
-                              </div>
-                              
-                              <div className="bg-gray-50 rounded-lg overflow-hidden">
-                                {/* Product List Header */}
-                                <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
-                                  <div className="grid grid-cols-6 gap-4 text-sm font-medium text-gray-700">
-                                    <div className="col-span-2">ឈ្មោះទំនិញ</div>
-                                    <div className="text-center">ទម្ងន់</div>
-                                    <div className="text-center">បរិមាណ</div>
-                                    <div className="text-center">តម្លៃ/ឯកតា</div>
-                                    <div className="text-center">សរុប</div>
-                                  </div>
-                                </div>
-                                
-                                {/* Product List Items */}
-                                <div className="divide-y divide-gray-200">
-                                  {pawn.products.map((product, index) => (
-                                    <div key={`${product.prod_id}-${index}`} className="px-4 py-3 hover:bg-gray-50">
-                                      <div className="grid grid-cols-6 gap-4 items-center">
-                                        <div className="col-span-2 flex items-center space-x-3">
-                                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                            <Package className="h-5 w-5 text-blue-600" />
-                                          </div>
-                                          <div>
-                                            <p className="font-medium text-gray-900">{product.prod_name}</p>
-                                            <p className="text-xs text-gray-500">ID: {product.prod_id}</p>
-                                          </div>
-                                        </div>
-                                        <div className="text-center text-sm text-gray-600">
-                                          {product.pawn_weight}
-                                        </div>
-                                        <div className="text-center">
-                                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            {product.pawn_amount}
-                                          </span>
-                                        </div>
-                                        <div className="text-center font-medium text-gray-900">
-                                          ${product.pawn_unit_price}
-                                        </div>
-                                        <div className="text-center font-semibold text-gray-900">
-                                          ${product.pawn_unit_price * product.pawn_amount}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
+                          <div>
+                            <h4 className="text-lg font-semibold text-gray-900">កម្ម័ង #{pawn.pawn_id}</h4>
+                            <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
+                              <Calendar className="h-4 w-4" />
+                              <span>{new Date(pawn.pawn_date).toLocaleDateString('km-KH')}</span>
                             </div>
                           </div>
                         </div>
-                      ))}
+                        
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500 mb-1">ប្រាក់កក់</p>
+                            <p className="text-xl font-bold text-blue-600">${pawn.pawn_deposit}</p>
+                          </div>
+
+                          <button
+                            onClick={() => handlePrintPawn(pawn.pawn_id)}
+                            disabled={printLoading[pawn.pawn_id]}
+                            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                          >
+                            {printLoading[pawn.pawn_id] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Printer className="h-4 w-4" />
+                            )}
+                            <span className="ml-2">បោះពុម្ព</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Products Section */}
+                      <div className="p-6">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-lg font-semibold text-gray-900 flex items-center">
+                              <Package className="h-5 w-5 mr-2 text-blue-600" />
+                              បញ្ជីទំនិញ
+                            </h5>
+                            <span className="text-sm text-gray-500">({pawn.products.length} ប្រភេទ)</span>
+                          </div>
+                          
+                          <div className="bg-gray-50 rounded-lg overflow-hidden">
+                            {/* Product List Header */}
+                            <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
+                              <div className="grid grid-cols-6 gap-4 text-sm font-medium text-gray-700">
+                                <div className="col-span-2">ឈ្មោះទំនិញ</div>
+                                <div className="text-center">ទម្ងន់</div>
+                                <div className="text-center">បរិមាណ</div>
+                                <div className="text-center">តម្លៃ/ឯកតា</div>
+                                <div className="text-center">សរុប</div>
+                              </div>
+                            </div>
+                            
+                            {/* Product List Items */}
+                            <div className="divide-y divide-gray-200">
+                              {pawn.products.map((product, index) => (
+                                <div key={`${product.prod_id}-${index}`} className="px-4 py-3 hover:bg-gray-50">
+                                  <div className="grid grid-cols-6 gap-4 items-center">
+                                    <div className="col-span-2 flex items-center space-x-3">
+                                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <Package className="h-5 w-5 text-blue-600" />
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-gray-900">{product.prod_name}</p>
+                                        <p className="text-xs text-gray-500">ID: {product.prod_id}</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-center text-sm text-gray-600">
+                                      {product.pawn_weight}
+                                    </div>
+                                    <div className="text-center">
+                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {product.pawn_amount}
+                                      </span>
+                                    </div>
+                                    <div className="text-center font-medium text-gray-900">
+                                      ${product.pawn_unit_price}
+                                    </div>
+                                    <div className="text-center font-semibold text-gray-900">
+                                      ${product.pawn_unit_price * product.pawn_amount}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             </>

@@ -177,8 +177,8 @@ export interface PawnCreateData {
 
 // Products API - Based on your exact endpoints "/api/product"
 export const productsApi = {
-  getAll: async (): Promise<ApiResponse<Product[]>> => {
-    const response = await apiClient.get('/api/product');
+  getAll: async (page = 1, limit = 10): Promise<ApiResponse<Product[]>> => {
+    const response = await apiClient.get(`/api/product?page=${page}&limit=${limit}`);
     return response.data;
   },
   
@@ -260,8 +260,30 @@ export const ordersApi = {
     return response.data;
   },
   
-  getClientOrders: async (): Promise<ApiResponse<Order[]>> => {
-    const response = await apiClient.get('/api/order/all_client');
+  getClientOrders: async (params?: { page?: number; search_id?: number; search_name?: string; search_phone?: string; search_address?: string }): Promise<ApiResponse<Order[]>> => {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.page) {
+      queryParams.append('page', params.page.toString());
+    }
+    if (params?.search_id) {
+      queryParams.append('search_id', params.search_id.toString());
+    }
+    if (params?.search_name) {
+      queryParams.append('search_name', params.search_name);
+    }
+    if (params?.search_phone) {
+      queryParams.append('search_phone', params.search_phone);
+    }
+    if (params?.search_address) {
+      queryParams.append('search_address', params.search_address);
+    }
+    
+    const url = queryParams.toString() 
+      ? `/api/order/all_client?${queryParams.toString()}`
+      : '/api/order/all_client';
+      
+    const response = await apiClient.get(url);
     return response.data;
   },
 

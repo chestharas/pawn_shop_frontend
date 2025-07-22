@@ -38,8 +38,10 @@ export const authApi = {
   // POST /sign_in - Login with phone number and password
   signIn: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const response = await authApiClient.post('/sign_in', {
-      phone_number: credentials.phone_number,
-      password: credentials.password
+      params: {
+        phone_number: credentials.phone_number,
+        password: credentials.password
+      }
     });
     return response.data;
   },

@@ -1,4 +1,4 @@
-// pawn/PawnForm.tsx - Clean Rewrite with ProductDropdown Component
+// pawn/PawnForm.tsx - Updated version with external summary section
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -60,7 +60,7 @@ interface PawnFormProps {
 }
 
 export default function PawnForm({
-  products,
+  products = [], // Default to empty array to prevent errors
   onNotification,
   onPawnCreated,
   formData,
@@ -80,6 +80,9 @@ export default function PawnForm({
     pawn_deposit: 0,
     pawn_product_detail: []
   });
+
+  // Ensure products is always an array
+  const safeProducts = Array.isArray(products) ? products : [];
 
   // Format display value for number inputs (show empty string instead of 0)
   const formatDisplayValue = (value: number): string => {
@@ -143,6 +146,13 @@ export default function PawnForm({
   useEffect(() => {
     fetchNextPawnId();
   }, []);
+
+  // Debug log to check products
+  useEffect(() => {
+    console.log('Products received in PawnForm:', products);
+    console.log('Products is array:', Array.isArray(products));
+    console.log('Products length:', products?.length);
+  }, [products]);
 
   // Add new product row to pawn
   const addProductToPawn = () => {
@@ -286,6 +296,8 @@ export default function PawnForm({
       <form onSubmit={handlePawnSubmit} className="flex-1 flex flex-col">
         <div className="space-y-4 flex-1 overflow-y-auto max-h-96">
           
+         
+          
           {/* Pawn Header Information */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Pawn ID */}
@@ -417,7 +429,7 @@ export default function PawnForm({
                 </div>
 
                 {/* Table Body */}
-                <div className="divide-y divide-gray-200">
+                <div className="divide-y divide-gray-200 border border-gray-200 rounded-b-lg">
                   {pawnData.pawn_product_detail.map((product, index) => (
                     <div 
                       key={index}
@@ -432,10 +444,10 @@ export default function PawnForm({
                         </span>
                       </div>
 
-                      {/* Product Dropdown */}
+                      {/* Product Dropdown - Now with safe products array */}
                       <div className="col-span-3">
                         <ProductDropdown
-                          products={products}
+                          products={safeProducts} // Use the safe products array
                           value={product.prod_name}
                           onProductSelect={(productId, productName) => 
                             handleProductSelect(index, productId, productName)
@@ -500,40 +512,9 @@ export default function PawnForm({
                     </div>
                   ))}
                 </div>
-
-                {/* Summary Section */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-6">
-                      <div className="text-center">
-                        <span className="text-sm font-medium text-gray-600">សរុបផលិតផល: </span>
-                        <span className="text-lg font-bold text-gray-600">
-                          {pawnData.pawn_product_detail.length} ប្រភេទ
-                        </span>
-                      </div>
-                      
-                      <div className="text-center">
-                        <span className="text-sm font-medium text-gray-600">តម្លៃសរុប: </span>
-                        <span className="text-lg font-bold text-gray-600">
-                          ${calculateTotalValue().toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      disabled={submittingPawn || isFormDisabled || loadingNextId}
-                      loading={submittingPawn}
-                      icon={<Package className="h-4 w-4" />}
-                      className="px-6"
-                    >
-                      បង្កើតការបញ្ជាក់
-                    </Button>
-                  </div>
-                </div>
               </div>
             ) : (
-              /* No products message - Updated to match OrderForm */
+              /* No products message */
               <div 
                 className="p-8 text-center border-2 border-dashed rounded-lg"
                 style={{ borderColor: colors.secondary[200] }}
@@ -550,10 +531,44 @@ export default function PawnForm({
           </div>
         </div>
 
-        {/* Footer Section */}
-        <div className="pt-4 mt-auto border-t" style={{ borderTopColor: colors.secondary[200] }}>
-          {!hasProducts && (
-            /* Submit button when no products */
+        {/* External Summary Section - Now outside the products area */}
+        {hasProducts && (
+          <div className="mt-6 pt-4 border-t" style={{ borderTopColor: colors.secondary[200] }}>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-6">
+                  <div className="text-center">
+                    <span className="text-sm font-medium text-gray-600">សរុបផលិតផល: </span>
+                    <span className="text-lg font-bold text-blue-700">
+                      {pawnData.pawn_product_detail.length} ប្រភេទ
+                    </span>
+                  </div>
+                  
+                  <div className="text-center">
+                    <span className="text-sm font-medium text-gray-600">តម្លៃសរុប: </span>
+                    <span className="text-lg font-bold text-blue-700">
+                      ${calculateTotalValue().toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={submittingPawn || isFormDisabled || loadingNextId}
+                  loading={submittingPawn}
+                  icon={<Package className="h-4 w-4" />}
+                  className="px-6"
+                >
+                  បង្កើតការបញ្ជាក់
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer Section - Submit button when no products */}
+        {!hasProducts && (
+          <div className="pt-4 mt-auto border-t" style={{ borderTopColor: colors.secondary[200] }}>
             <div className="flex justify-end">
               <Button
                 type="submit"
@@ -565,20 +580,8 @@ export default function PawnForm({
                 បង្កើតការបញ្ជាក់
               </Button>
             </div>
-          )}
-
-          {/* Add Product Button */}
-          {/* <div className="mt-4">
-            <button
-              type="button"
-              onClick={addProductToPawn}
-              className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              បន្ថែមផលិតផល
-            </button>
-          </div> */}
-        </div>
+          </div>
+        )}
       </form>
     </Card>
   );
