@@ -80,7 +80,7 @@ interface PaginationInfo {
   total_pages: number;
   has_next: boolean;
   has_previous: boolean;
-  search_filters?: any;
+  search_filters?: Record<string, unknown>;
 }
 
 export default function OrderPage() {
@@ -413,6 +413,7 @@ export default function OrderPage() {
     const getPageNumbers = () => {
       const pages = [];
       const totalPages = pagination.total_pages;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const current = currentPage;
       
       if (totalPages <= 5) {

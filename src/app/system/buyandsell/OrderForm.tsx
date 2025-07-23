@@ -23,8 +23,10 @@ interface Client {
 }
 
 interface Product {
-  id: number;
-  name: string;
+  prod_id?: number;
+  prod_name: string;
+  unit_price?: number;
+  amount?: number;
 }
 
 interface OrderProductDetail {
@@ -423,7 +425,7 @@ export default function OrderForm({
                         {/* Product Dropdown */}
                         <div className="col-span-2">
                           <ProductDropdown
-                            products={safeProducts}
+                            products={safeProducts as any}
                             value={product.prod_name}
                             onProductSelect={(productId, productName) => 
                               handleProductSelect(index, productId, productName)

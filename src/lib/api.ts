@@ -77,10 +77,10 @@ export interface ApiResponse<T = unknown> {
 
 // Product types
 export interface Product {
-  prod_id?: number;
-  prod_name: string;
-  unit_price?: number;
-  amount?: number;
+  id: number;
+  name: string;
+  price?: number | null;
+  amount?: number | null;
 }
 
 export interface ProductCreateData {
@@ -137,12 +137,22 @@ export interface Order {
 }
 
 export interface OrderCreateData {
+  order_id?: number;
   cus_id: number;
   cus_name: string;
+  address: string;
   phone_number: string;
   order_date: string;
-  total_amount: number;
-  items: OrderItem[];
+  order_deposit: number;
+  order_product_detail: {
+    prod_id: number;
+    prod_name: string;
+    order_weight: string | number;
+    order_amount: number;
+    product_sell_price: number;
+    product_labor_cost: number;
+    product_buy_price: number;
+  }[];
 }
 
 // Pawn types
@@ -165,19 +175,26 @@ export interface Pawn {
 }
 
 export interface PawnCreateData {
+  pawn_id?: number;
   cus_id: number;
   cus_name: string;
+  address: string;
   phone_number: string;
   pawn_date: string;
-  total_value: number;
-  interest_rate: number;
-  duration_months: number;
-  items: PawnItem[];
+  pawn_expire_date: string;
+  pawn_deposit: number;
+  pawn_product_detail: {
+    prod_id: number;
+    prod_name: string;
+    pawn_weight: string;
+    pawn_amount: number;
+    pawn_unit_price: number;
+  }[];
 }
 
 // Products API - Based on your exact endpoints "/api/product"
 export const productsApi = {
-  getAll: async (page = 1, limit = 10): Promise<ApiResponse<Product[]>> => {
+  getAll: async (page = 1, limit = 10): Promise<ApiResponse<{products: Product[], pagination: any}>> => {
     const response = await apiClient.get(`/api/product?page=${page}&limit=${limit}`);
     return response.data;
   },

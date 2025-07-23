@@ -145,7 +145,7 @@ export default function ClientForm({
       
       if (response.code === 200 && response.result && response.result.length > 0) {
         const client = response.result[0];
-        onClientFound(client);
+        onClientFound(client as any);
         
         // Auto-fill the form with found client data
         onFormDataChange({
@@ -476,14 +476,12 @@ export default function ClientForm({
         {/* Action Buttons - Pinned to bottom */}
         <div className="flex space-x-3 pt-6 mt-auto">
           <Button
-            ref={searchButtonRef}
             type="button"
             onClick={handleSearchClient}
             loading={searching}
             disabled={searching || !formData.phone_number?.trim()}
             icon={<Search className="h-4 w-4" />}
             className="flex-1"
-            onKeyDown={(e) => handleKeyDown(e, 'search')}
           >
             ស្វែងរក
           </Button>

@@ -305,6 +305,7 @@ export default function ProductPage() {
   const goToPrevPage = () => goToPage(currentPage - 1);
   const goToNextPage = () => goToPage(currentPage + 1);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
     setCurrentPage(1); // Reset to first page when changing page size
@@ -315,6 +316,7 @@ export default function ProductPage() {
   const getPageNumbers = () => {
     const pages = [];
     const totalPages = pagination.total_pages;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const current = currentPage;
     
     if (totalPages <= 5) {
@@ -358,17 +360,17 @@ export default function ProductPage() {
       label: 'លេខសំគាល់',
       width: '100px',
       align: 'center' as const,
-      render: (value: number) => (
-        <span style={{ color: colors.secondary[700], fontWeight: '500' }}>{value}</span>
+      render: (value: unknown) => (
+        <span style={{ color: colors.secondary[700], fontWeight: '500' }}>{value as number}</span>
       )
     },
     {
       key: 'name',
       label: 'ឈ្មោះទំនិញ',
       width: '300px',
-      render: (value: string) => (
+      render: (value: unknown) => (
         <span className="font-medium" style={{ color: colors.secondary[900] }}>
-          {value || '-'}
+          {(value as string) || '-'}
         </span>
       )
     },
@@ -377,9 +379,9 @@ export default function ProductPage() {
       label: 'តំលៃក្នុងមួយឯកតា',
       width: '140px',
       align: 'center' as const,
-      render: (value: number | null) => (
+      render: (value: unknown) => (
         <span style={{ color: colors.secondary[700], fontWeight: '500' }}>
-          {value ? `${value.toFixed(2)}` : '-'}
+          {value ? `${(value as number).toFixed(2)}` : '-'}
         </span>
       )
     },
@@ -388,7 +390,7 @@ export default function ProductPage() {
       label: 'ចំនួន',
       width: '80px',
       align: 'center' as const,
-      render: (value: number | null) => (
+      render: (value: unknown) => (
         <span style={{ color: colors.secondary[700], fontWeight: '500' }}>
           {value || '-'}
         </span>
@@ -399,22 +401,25 @@ export default function ProductPage() {
       label: 'ប្រតិបត្តិការ',
       width: '120px',
       align: 'center' as const,
-      render: (_value: unknown, row: Product) => (
-        <div className="flex items-center justify-center space-x-2">
-          <ActionButton
-            onClick={() => handleEdit(row)}
-            icon={<Edit2 className="h-4 w-4" />}
-            variant="edit"
-            title="កែប្រែ"
-          />
-          <ActionButton
-            onClick={() => openDeleteModal(row)}
-            icon={<Trash2 className="h-4 w-4" />}
-            variant="delete"
-            title="លុប"
-          />
-        </div>
-      )
+      render: (_value: unknown, row: Record<string, unknown>) => {
+        const product = row as unknown as Product;
+        return (
+          <div className="flex items-center justify-center space-x-2">
+            <ActionButton
+              onClick={() => handleEdit(product)}
+              icon={<Edit2 className="h-4 w-4" />}
+              variant="edit"
+              title="កែប្រែ"
+            />
+            <ActionButton
+              onClick={() => openDeleteModal(product)}
+              icon={<Trash2 className="h-4 w-4" />}
+              variant="delete"
+              title="លុប"
+            />
+          </div>
+        );
+      }
     }
   ];
 
@@ -488,16 +493,7 @@ export default function ProductPage() {
                 className="flex-1"
                 loading={deleting}
                 disabled={deleting}
-                style={{
-                  backgroundColor: colors.error[600],
-                  borderColor: colors.error[600]
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = colors.error[700];
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colors.error[600];
-                }}
+                variant="danger"
               >
                 លុប
               </Button>
@@ -699,7 +695,7 @@ export default function ProductPage() {
               <div className="flex-1 overflow-hidden">
                 <Table
                   columns={columns}
-                  data={filteredProducts}
+                  data={filteredProducts as Record<string, unknown>[]}
                   loading={loading}
                   emptyMessage="មិនមានទំនិញក្នុងបញ្ជី"
                   emptyIcon={<Package className="h-8 w-8" />}

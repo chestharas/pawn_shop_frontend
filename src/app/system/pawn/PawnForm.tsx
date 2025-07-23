@@ -108,7 +108,7 @@ export default function PawnForm({
       const response = await pawnsApi.getNextPawnId();
       
       if (response.code === 200 && response.result) {
-        setNextPawnId(response.result.next_pawn_id);
+        setNextPawnId(response.result.next_id);
       } else {
         setNextPawnId(1);
       }

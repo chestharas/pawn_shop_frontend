@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { clientsApi, productsApi, ordersApi } from '@/lib/api';
+import { clientsApi, productsApi, ordersApi, Client, Product } from '@/lib/api';
 import { colors } from '@/lib/colors';
 
 // Import local components from the same folder
@@ -11,18 +11,7 @@ import OrderForm from './OrderForm';
 import Notification from './Notification';
 import LastOrders from '@/components/ui/LastOrders';
 
-// Client interface based on API response
-interface Client {
-  cus_id: number;
-  cus_name: string;
-  address: string;
-  phone_number: string;
-}
-
-interface Product {
-  id: number;
-  name: string;
-}
+// Using API types directly
 
 interface FormData {
   cus_name: string;
@@ -35,8 +24,8 @@ interface NotificationState {
   message: string;
 }
 
-// Last Orders Interfaces
-interface OrderProduct {
+// Last Orders Interfaces (renamed to avoid API conflicts)
+interface LastOrderProduct {
   prod_name: string;
   prod_id: number;
   order_weight: string;
@@ -47,7 +36,7 @@ interface OrderProduct {
   subtotal: number;
 }
 
-interface OrderInfo {
+interface LastOrderInfo {
   order_id: number;
   order_date: string;
   order_deposit: number;
@@ -55,25 +44,25 @@ interface OrderInfo {
   remaining_balance: number;
 }
 
-interface ClientInfo {
+interface LastOrderClientInfo {
   cus_id: number;
   cus_name: string;
   address: string;
   phone_number: string;
 }
 
-interface OrderSummary {
+interface LastOrderSummary {
   total_products: number;
   total_amount: number;
   deposit_paid: number;
   balance_due: number;
 }
 
-interface Order {
-  order_info: OrderInfo;
-  client_info: ClientInfo;
-  products: OrderProduct[];
-  summary: OrderSummary;
+interface LastOrderData {
+  order_info: LastOrderInfo;
+  client_info: LastOrderClientInfo;
+  products: LastOrderProduct[];
+  summary: LastOrderSummary;
 }
 
 export default function BuyAndSellPage() {
@@ -88,7 +77,7 @@ export default function BuyAndSellPage() {
   });
 
   // Last Orders State
-  const [lastOrders, setLastOrders] = useState<Order[]>([]);
+  const [lastOrders, setLastOrders] = useState<LastOrderData[]>([]);
   const [loadingLastOrders, setLoadingLastOrders] = useState(false);
 
   // Ref to trigger order form reset
@@ -102,7 +91,8 @@ export default function BuyAndSellPage() {
     try {
       const response = await productsApi.getAll();
       if (response.code === 200 && response.result) {
-        setProducts(response.result);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setProducts(response.result as any);
       }
     } catch (error: unknown) {
       console.error('Error loading products:', error);
@@ -130,7 +120,8 @@ export default function BuyAndSellPage() {
       const response = await ordersApi.getLastOrders();
       
       if (response.code === 200 && response.result) {
-        setLastOrders(response.result);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setLastOrders(response.result as any);
         console.log('✅ Last orders loaded successfully:', response.result);
         if (response.result.length > 0) {
           // showNotification('success', `ទាញយកការបញ្ជាទិញចុងក្រោយ ${response.result.length} ចំនួនបានជោគជ័យ`);

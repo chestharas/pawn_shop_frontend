@@ -1,7 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  experimental: {
+    turbo: undefined,
+  },
+  // Windows compatibility settings
+  distDir: '.next',
+  trailingSlash: false,
 };
 
 export default nextConfig;

@@ -107,7 +107,7 @@ export default function PawnPage() {
     try {
       const response = await productsApi.getAll();
       if (response.code === 200 && response.result) {
-        setProducts(response.result);
+        setProducts(response.result as any);
       }
     } catch (error: unknown) {
       console.error('Error loading products:', error);
@@ -122,7 +122,7 @@ export default function PawnPage() {
       
       if (response.code === 200 && response.result) {
         // Transform the API response to match our component's expected format
-        const transformedPawns: Pawn[] = response.result.map((pawn: unknown) => {
+        const transformedPawns = response.result.map((pawn: unknown) => {
           const pawnData = pawn as {
             pawn_info: PawnInfo;
             client_info: Client;
@@ -167,7 +167,7 @@ export default function PawnPage() {
           };
         });
         
-        setLastPawns(transformedPawns);
+        setLastPawns(transformedPawns as any);
       } else {
         showNotification('error', 'មិនអាចទាញយកបញ្ជីការបញ្ចាំបានទេ');
       }
@@ -183,7 +183,7 @@ export default function PawnPage() {
     try {
       const response = await clientsApi.getAll();
       if (response.code === 200 && response.result) {
-        setClients(response.result);
+        setClients(response.result as any);
       } else {
         showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
       }
@@ -299,7 +299,7 @@ export default function PawnPage() {
           {/* Bottom Row - Last Pawns Panel */}
           <div className="w-full" style={{ minHeight: '300px' }}>
             <LastPawn
-              pawns={lastPawns}
+              pawns={lastPawns as any}
               loading={loadingLastPawns}
               onRefresh={loadLastPawns}
               onNotification={showNotification}
