@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { pawnsApi } from '@/lib/api';
+import { colors } from '@/lib/colors';
 import { printPawn } from '@/lib/printPawn';
 import { 
   Search, 
@@ -404,7 +405,7 @@ export default function PawnPage() {
     if (!clients.length || !pagination) return null;
 
     // Don't show pagination if only one page
-    // if (pagination.total_pages <= 1) return null;
+    if (pagination.total_pages <= 1) return null;
 
     // Generate page numbers for pagination
     const getPageNumbers = () => {
@@ -493,11 +494,15 @@ export default function PawnPage() {
                   disabled={page === '...' || loading || searchLoading}
                   className={`min-w-[32px] h-8 px-3 py-1 text-sm rounded transition-colors ${
                     page === currentPage
-                      ? 'bg-blue-500 text-white shadow-sm'
+                      ? 'text-white shadow-sm'
                       : page === '...'
                       ? 'cursor-default text-gray-400'
                       : 'hover:bg-gray-100 text-gray-700'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  style={page === currentPage ? { 
+                    backgroundColor: colors.primary[500],
+                    borderColor: colors.primary[500]
+                  } : {}}
                 >
                   {page}
                 </button>
@@ -547,7 +552,16 @@ export default function PawnPage() {
           <span>{notification.message}</span>
           <button 
             onClick={() => isMountedRef.current && setNotification(null)}
-            className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-full"
+                            className="focus:outline-none focus:ring-2 focus:ring-offset-2 rounded-full"
+                style={{
+                  '&:focus': { ringColor: colors.primary[500] }
+                }}
+                onFocus={(e) => {
+                  e.target.style.boxShadow = `0 0 0 2px ${colors.primary[200]}`;
+                }}
+                onBlur={(e) => {
+                  e.target.style.boxShadow = 'none';
+                }}
           >
             <X className="h-4 w-4" />
           </button>
@@ -563,7 +577,7 @@ export default function PawnPage() {
               {/* Search Header */}
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <Search className="h-5 w-5 mr-2 text-blue-600" />
+                  <Search className="h-5 w-5 mr-2" style={{ color: colors.primary[600] }} />
                   ស្វែងរកអតិថិជន
                 </h3>
               </div>
@@ -579,7 +593,15 @@ export default function PawnPage() {
                   <div className="relative">
                     <input
                       type="number"
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:border-transparent transition-colors"
+                      onFocus={(e) => {
+                        e.target.style.borderColor = colors.primary[500];
+                        e.target.style.boxShadow = `0 0 0 2px ${colors.primary[200]}`;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#d1d5db';
+                        e.target.style.boxShadow = 'none';
+                      }}
                       placeholder="បញ្ចូល ID..."
                       value={searchFilters.cus_id}
                       onChange={(e) => handleFilterChange('cus_id', e.target.value)}
@@ -604,9 +626,17 @@ export default function PawnPage() {
                   </label>
                   <div className="relative">
                     <input
-                      type="text"
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="បញ្ចូលឈ្មោះ..."
+                                              type="text"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:border-transparent transition-colors"
+                        onFocus={(e) => {
+                          e.target.style.borderColor = colors.primary[500];
+                          e.target.style.boxShadow = `0 0 0 2px ${colors.primary[200]}`;
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#d1d5db';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                        placeholder="បញ្ចូលឈ្មោះ..."
                       value={searchFilters.cus_name}
                       onChange={(e) => handleFilterChange('cus_name', e.target.value)}
                       onKeyPress={handleKeyPress}
@@ -631,7 +661,15 @@ export default function PawnPage() {
                   <div className="relative">
                     <input
                       type="tel"
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:border-transparent transition-colors"
+                      onFocus={(e) => {
+                        e.target.style.borderColor = colors.primary[500];
+                        e.target.style.boxShadow = `0 0 0 2px ${colors.primary[200]}`;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#d1d5db';
+                        e.target.style.boxShadow = 'none';
+                      }}
                       placeholder="បញ្ចូលលេខទូរសព្ទ..."
                       value={searchFilters.phone_number}
                       onChange={(e) => handleFilterChange('phone_number', e.target.value)}
@@ -657,7 +695,15 @@ export default function PawnPage() {
                   <div className="relative">
                     <input
                       type="text"
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:border-transparent transition-colors"
+                      onFocus={(e) => {
+                        e.target.style.borderColor = colors.primary[500];
+                        e.target.style.boxShadow = `0 0 0 2px ${colors.primary[200]}`;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#d1d5db';
+                        e.target.style.boxShadow = 'none';
+                      }}
                       placeholder="បញ្ចូលអាសយដ្ឋាន..."
                       value={searchFilters.address}
                       onChange={(e) => handleFilterChange('address', e.target.value)}
@@ -680,7 +726,14 @@ export default function PawnPage() {
                 <button
                   onClick={handleSearchClick}
                   disabled={searchLoading}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{
+                  backgroundColor: colors.primary[600],
+                  '&:hover': { backgroundColor: colors.primary[700] },
+                  '&:focus': { ringColor: colors.primary[500] }
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primary[700]}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.primary[600]}
                 >
                   {searchLoading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -701,18 +754,21 @@ export default function PawnPage() {
 
               {/* Search Status */}
               {isSearchMode && (
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <div 
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: colors.primary[50] }}
+              >
                   <div className="flex items-center space-x-2">
                     {searchLoading ? (
-                      <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" style={{ color: colors.primary[600] }} />
                     ) : (
-                      <Search className="h-4 w-4 text-blue-600" />
+                      <Search className="h-4 w-4" style={{ color: colors.primary[600] }} />
                     )}
-                    <span className="text-sm text-blue-800">
+                    <span className="text-sm" style={{ color: colors.primary[800] }}>
                       {searchLoading ? 'កំពុងស្វែងរក...' : `ស្វែងរកដោយ ${getActiveSearchCount()} លក្ខខណ្ឌ`}
                     </span>
                   </div>
-                  <span className="text-sm text-blue-600 font-medium">
+                  <span className="text-sm font-medium" style={{ color: colors.primary[600] }}>
                     រកឃើញ {pagination?.total_items || clients.length} លទ្ធផល
                     {pagination && pagination.total_pages > 1 && (
                       <span className="ml-2">
@@ -749,7 +805,13 @@ export default function PawnPage() {
                         </p>
                         <button
                           onClick={clearAllFilters}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="text-sm font-medium hover:underline transition-colors"
+                style={{ 
+                  color: colors.primary[600],
+                  '&:hover': { color: colors.primary[800] }
+                }}
+                onMouseEnter={(e) => e.target.style.color = colors.primary[800]}
+                onMouseLeave={(e) => e.target.style.color = colors.primary[600]}
                         >
                           សម្អាតការស្វែងរកនិងបង្ហាញអតិថិជនទាំងអស់
                         </button>
@@ -778,7 +840,16 @@ export default function PawnPage() {
                           key={`client-${client.cus_id}-${index}`} 
                           className={`${
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                          } hover:bg-blue-50 transition-colors duration-200`}
+                          } transition-colors duration-200`}
+                        style={{
+                          backgroundColor: index % 2 === 0 ? 'white' : '#f9fafb'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = colors.primary[50];
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = index % 2 === 0 ? 'white' : '#f9fafb';
+                        }}
                         >
                           <div className="flex items-center justify-between px-6 py-3">
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1">
@@ -931,7 +1002,7 @@ export default function PawnPage() {
               <div className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="p-6 border-b border-gray-100">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                    <ShoppingCart className="h-5 w-5 mr-2 text-blue-600" />
+                    <ShoppingCart className="h-5 w-5 mr-2" style={{ color: colors.primary[600] }} />
                     ប្រវត្តិកម្ម័ង
                   </h3>
                 </div>
@@ -942,8 +1013,11 @@ export default function PawnPage() {
                       {/* Enhanced Pawn Header */}
                       <div className="flex items-center justify-between p-6 border-b border-gray-100">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                            <ShoppingCart className="h-5 w-5 text-blue-600" />
+                          <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: colors.primary[50] }}
+                >
+                            <ShoppingCart className="h-5 w-5" style={{ color: colors.primary[600] }} />
                           </div>
                           <div>
                             <h4 className="text-lg font-semibold text-gray-900">កម្ម័ង #{pawn.pawn_id}</h4>
@@ -957,7 +1031,7 @@ export default function PawnPage() {
                         <div className="flex items-center gap-4">
                           <div className="text-right">
                             <p className="text-xs text-gray-500 mb-1">ប្រាក់កក់</p>
-                            <p className="text-xl font-bold text-blue-600">${pawn.pawn_deposit}</p>
+                            <p className="text-xl font-bold" style={{ color: colors.primary[600] }}>${pawn.pawn_deposit}</p>
                           </div>
 
                           <button
@@ -980,7 +1054,7 @@ export default function PawnPage() {
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <h5 className="text-lg font-semibold text-gray-900 flex items-center">
-                              <Package className="h-5 w-5 mr-2 text-blue-600" />
+                              <Package className="h-5 w-5 mr-2" style={{ color: colors.primary[600] }} />
                               បញ្ជីទំនិញ
                             </h5>
                             <span className="text-sm text-gray-500">({pawn.products.length} ប្រភេទ)</span>
@@ -1004,8 +1078,11 @@ export default function PawnPage() {
                                 <div key={`${product.prod_id}-${index}`} className="px-4 py-3 hover:bg-gray-50">
                                   <div className="grid grid-cols-6 gap-4 items-center">
                                     <div className="col-span-2 flex items-center space-x-3">
-                                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <Package className="h-5 w-5 text-blue-600" />
+                                      <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: colors.primary[100] }}
+                >
+                                        <Package className="h-5 w-5" style={{ color: colors.primary[600] }} />
                                       </div>
                                       <div>
                                         <p className="font-medium text-gray-900">{product.prod_name}</p>
@@ -1016,7 +1093,13 @@ export default function PawnPage() {
                                       {product.pawn_weight}
                                     </div>
                                     <div className="text-center">
-                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      <span 
+                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                  style={{ 
+                    backgroundColor: colors.primary[100], 
+                    color: colors.primary[800] 
+                  }}
+                >
                                         {product.pawn_amount}
                                       </span>
                                     </div>

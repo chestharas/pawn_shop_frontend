@@ -569,7 +569,15 @@ export default function ProductPage() {
                       type="text"
                       value={formData.prod_name}
                       onChange={(e) => setFormData({ ...formData, prod_name: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent transition-colors"
+                        onFocus={(e) => {
+                          e.target.style.borderColor = colors.primary[500];
+                          e.target.style.boxShadow = `0 0 0 2px ${colors.primary[200]}`;
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = colors.secondary[300];
+                          e.target.style.boxShadow = 'none';
+                        }}
                       style={{ 
                         borderColor: colors.secondary[300],
                       }}
@@ -747,11 +755,15 @@ export default function ProductPage() {
                             disabled={page === '...'}
                             className={`px-3 py-1 text-sm rounded ${
                               page === currentPage
-                                ? 'bg-blue-500 text-white'
+                                ? 'text-white'
                                 : page === '...'
                                 ? 'cursor-default'
                                 : 'hover:bg-gray-100'
                             }`}
+                            style={page === currentPage ? { 
+                              backgroundColor: colors.primary[500],
+                              borderColor: colors.primary[500]
+                            } : {}}
                           >
                             {page}
                           </button>

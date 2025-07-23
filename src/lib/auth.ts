@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { config } from './config';
 
 // Auth types
 interface User {
@@ -33,10 +34,8 @@ export function AuthProvider(props: { children: React.ReactNode }) {
 
   const isAuthenticated = !!user;
 
-  // Hardcoded API URL for now (to avoid env variable issues)
-  const API_URL = 'http://localhost:8080';
-
   // Simple token decode function
+  
   const decodeToken = useCallback((token: string) => {
     try {
       const base64Url = token.split('.')[1];
@@ -91,9 +90,9 @@ export function AuthProvider(props: { children: React.ReactNode }) {
     try {
       setLoading(true);
   
-      // Build the URL with query parameters
-      const url = `${API_URL}/sign_in?phone_number=${encodeURIComponent(phone_number)}&password=${encodeURIComponent(password)}`;
-  
+            // Build the URL with query parameters
+      const url = `${config.apiUrl}/sign_in?phone_number=${encodeURIComponent(phone_number)}&password=${encodeURIComponent(password)}`;
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -136,7 +135,7 @@ export function AuthProvider(props: { children: React.ReactNode }) {
       const refreshTokenStored = localStorage.getItem('refresh_token');
       if (!refreshTokenStored) return false;
 
-      const response = await fetch(`${API_URL}/refresh_token?refresh_token=${refreshTokenStored}`, {
+      const response = await fetch(`${config.apiUrl}/refresh_token?refresh_token=${refreshTokenStored}`, {
         method: 'POST'
       });
 

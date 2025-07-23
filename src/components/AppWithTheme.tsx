@@ -51,6 +51,16 @@ export default function AppWithTheme({ children }: AppWithThemeProps) {
               color: themes.default.white 
             }}
           >
+            Orange
+          </button>
+          <button
+            onClick={() => setTheme(themes.blue)}
+            className="px-3 py-1 rounded text-sm"
+            style={{ 
+              backgroundColor: themes.blue.primary[500], 
+              color: themes.blue.white 
+            }}
+          >
             Blue
           </button>
           <button
