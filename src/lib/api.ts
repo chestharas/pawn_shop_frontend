@@ -195,22 +195,22 @@ export interface PawnCreateData {
 // Products API - Based on your exact endpoints "/api/product"
 export const productsApi = {
   getAll: async (page = 1, limit = 10): Promise<ApiResponse<{products: Product[], pagination: any}>> => {
-    const response = await apiClient.get(`/api/product?page=${page}&limit=${limit}`);
+    const response = await apiClient.get(`/products/api/product?page=${page}&limit=${limit}`);
     return response.data;
   },
   
   create: async (product: ProductCreateData): Promise<ApiResponse<Product>> => {
-    const response = await apiClient.post('/api/product', product);
+    const response = await apiClient.post('/products/api/product', product);
     return response.data;
   },
   
   update: async (updateData: ProductUpdateData): Promise<ApiResponse<Product>> => {
-    const response = await apiClient.put('/api/product', updateData);
+    const response = await apiClient.put('/products/api/product', updateData);
     return response.data;
   },
   
   delete: async (productId: number): Promise<ApiResponse> => {
-    const response = await apiClient.delete(`/api/product/${productId}`);
+    const response = await apiClient.delete(`/products/api/product/${productId}`);
     return response.data;
   },
   
@@ -220,7 +220,7 @@ export const productsApi = {
     if (params.cus_name) searchParams.append('cus_name', params.cus_name);
     if (params.phone_number) searchParams.append('phone_number', params.phone_number);
 
-    const response = await apiClient.get(`/api/order/search?${searchParams.toString()}`);
+    const response = await apiClient.get(`/orders/api/order/search?${searchParams.toString()}`);
     return response.data;
   }
   
@@ -233,17 +233,17 @@ export const productsApi = {
 // Clients API - Based on your Swagger "/api/client"
 export const clientsApi = {
   getAll: async (): Promise<ApiResponse<Client[]>> => {
-    const response = await apiClient.get('/api/client');
+    const response = await apiClient.get('/client/api/client');
     return response.data;
   },
   
   create: async (client: ClientCreateData): Promise<ApiResponse<Client>> => {
-    const response = await apiClient.post('/api/client', client);
+    const response = await apiClient.post('/client/api/client', client);
     return response.data;
   },
 
   search: async (searchTerm: string): Promise<ApiResponse<Client[]>> => {
-    const response = await apiClient.get(`/api/client/${searchTerm}`);
+    const response = await apiClient.get(`/client/api/client/${searchTerm}`);
     return response.data;
   }
 };
@@ -268,12 +268,12 @@ export const ordersApi = {
   // },
 
   getorder: async (): Promise<ApiResponse<Order[]>> => {
-    const response = await apiClient.get('/api/order');
+    const response = await apiClient.get('/orders/api/order');
     return response.data;
   },
 
   create: async (order: OrderCreateData): Promise<ApiResponse<Order>> => {
-    const response = await apiClient.post('/api/order', order);
+    const response = await apiClient.post('/orders/api/order', order);
     return response.data;
   },
   
@@ -297,15 +297,15 @@ export const ordersApi = {
     }
     
     const url = queryParams.toString() 
-      ? `/api/order/all_client?${queryParams.toString()}`
-      : '/api/order/all_client';
-      
+      ? `/orders/api/order/all_client?${queryParams.toString()}`
+      : '/orders/api/order/all_client';
+
     const response = await apiClient.get(url);
     return response.data;
   },
 
   getClientOrderById: async (clientId: string): Promise<ApiResponse<Order[]>> => {
-    const response = await apiClient.get(`/api/order/client/${clientId}`);
+    const response = await apiClient.get(`orders/api/order/client/${clientId}`);
     return response.data;
   },
 

@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   // Windows compatibility settings
   distDir: '.next',
   trailingSlash: false,
+  // Enable standalone output for Docker
+  output: 'standalone',
 };
 
 export default nextConfig;

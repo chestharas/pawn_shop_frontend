@@ -91,7 +91,7 @@ export function AuthProvider(props: { children: React.ReactNode }) {
       setLoading(true);
   
             // Build the URL with query parameters
-      const url = `${config.apiUrl}/sign_in?phone_number=${encodeURIComponent(phone_number)}&password=${encodeURIComponent(password)}`;
+      const url = `${config.apiUrl}/auth/sign_in?phone_number=${encodeURIComponent(phone_number)}&password=${encodeURIComponent(password)}`;
 
       const response = await fetch(url, {
         method: 'GET',
