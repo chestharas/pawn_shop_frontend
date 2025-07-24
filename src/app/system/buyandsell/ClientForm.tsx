@@ -145,11 +145,11 @@ export default function ClientForm({
     try {
       // Send only digits to API
       const cleanPhone = formData.phone_number.replace(/\D/g, '');
-      const response = await clientsApi.search(cleanPhone);
+      const response = await clientsApi.getByPhone(cleanPhone);
       console.log('🔍 Search response:', response);
       
-      if (response.code === 200 && response.result && response.result.length > 0) {
-        const apiClient = response.result[0];
+      if (response.code === 200 && response.result) {
+        const apiClient = response.result;
         console.log('Client found:', apiClient);
         
         // Transform API client to component client format

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { productsApi } from '@/lib/api';
+import { productsApi, Product } from '@/lib/api';
 import { 
   Edit2, 
   Trash2, 
@@ -28,13 +28,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Card } from '@/components/ui/Card';
 import { ActionButton } from '@/components/ui/ActionButton';
 
-// Updated interface to match your API response
-interface Product {
-  id: number;
-  name: string;
-  price?: number | null;
-  amount?: number | null;
-}
+// Using Product interface from API
 
 interface FormData {
   prod_name: string;

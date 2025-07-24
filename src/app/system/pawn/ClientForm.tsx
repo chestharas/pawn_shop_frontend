@@ -141,10 +141,10 @@ export default function ClientForm({
     try {
       // Send only digits to API
       const cleanPhone = formData.phone_number.replace(/\D/g, '');
-      const response = await clientsApi.search(cleanPhone);
+      const response = await clientsApi.getByPhone(cleanPhone);
       
-      if (response.code === 200 && response.result && response.result.length > 0) {
-        const client = response.result[0];
+      if (response.code === 200 && response.result) {
+        const client = response.result;
         onClientFound(client as any);
         
         // Auto-fill the form with found client data

@@ -77,9 +77,9 @@ export interface ApiResponse<T = unknown> {
 
 // Product types
 export interface Product {
-  id: number;
-  name: string;
-  price?: number | null;
+  prod_id?: number;
+  prod_name: string;
+  unit_price?: number | null;
   amount?: number | null;
 }
 
@@ -192,7 +192,7 @@ export interface PawnCreateData {
   }[];
 }
 
-// Products API - Based on your exact endpoints "/api/product"
+// Products API - Updated to match exact endpoints from your API docs
 export const productsApi = {
   getAll: async (page = 1, limit = 10): Promise<ApiResponse<{products: Product[], pagination: any}>> => {
     const response = await apiClient.get(`/products/api/product?page=${page}&limit=${limit}`);
@@ -213,61 +213,34 @@ export const productsApi = {
     const response = await apiClient.delete(`/products/api/product/${productId}`);
     return response.data;
   },
-  
-  getClientOrderSearch: async (params: ClientSearchParams): Promise<ApiResponse> => {
-    const searchParams = new URLSearchParams();
-    if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
-    if (params.cus_name) searchParams.append('cus_name', params.cus_name);
-    if (params.phone_number) searchParams.append('phone_number', params.phone_number);
 
-    const response = await apiClient.get(`/orders/api/order/search?${searchParams.toString()}`);
+  search: async (searchTerm: string): Promise<ApiResponse<Product[]>> => {
+    const response = await apiClient.get(`/products/api/product/search?search=${encodeURIComponent(searchTerm)}`);
     return response.data;
   }
-  
-  // getNextId: async (): Promise<ApiResponse> => {
-  //   const response = await apiClient.get('/api/product/next-id');
-  //   return response.data;
-  // }
 };
 
-// Clients API - Based on your Swagger "/api/client"
+// Clients API - Updated to match exact endpoints
 export const clientsApi = {
-  getAll: async (): Promise<ApiResponse<Client[]>> => {
-    const response = await apiClient.get('/client/api/client');
+  getAll: async (page = 1, limit = 10): Promise<ApiResponse<Client[]>> => {
+    const response = await apiClient.get(`/clients/api/client?page=${page}&limit=${limit}`);
     return response.data;
   },
   
   create: async (client: ClientCreateData): Promise<ApiResponse<Client>> => {
-    const response = await apiClient.post('/client/api/client', client);
+    const response = await apiClient.post('/clients/api/client', client);
     return response.data;
   },
 
-  search: async (searchTerm: string): Promise<ApiResponse<Client[]>> => {
-    const response = await apiClient.get(`/client/api/client/${searchTerm}`);
+  getByPhone: async (phoneNumber: string): Promise<ApiResponse<Client>> => {
+    const response = await apiClient.get(`/clients/api/client/${phoneNumber}`);
     return response.data;
   }
 };
 
-// Orders API - Based on your Swagger "/api/order"
+// Orders API - Updated to match exact endpoints
 export const ordersApi = {
-
-  // These Point was changed
-  // getOrderAccount: async (phone_number: string): Promise<ApiResponse> => {
-  //   const response = await apiClient.get(`/order/client_phone?phone_number=${phone_number}`);
-  //   return response.data;
-  // },
-
-  // getClientOrder: async (params: { phone_number?: string; cus_name?: string; cus_id?: number }): Promise<ApiResponse> => {
-  //   const searchParams = new URLSearchParams();
-  //   if (params.phone_number) searchParams.append('phone_number', params.phone_number);
-  //   if (params.cus_name) searchParams.append('cus_name', params.cus_name);
-  //   if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
-    
-  //   const response = await apiClient.get(`/order?${searchParams}`);
-  //   return response.data;
-  // },
-
-  getorder: async (): Promise<ApiResponse<Order[]>> => {
+  getAll: async (): Promise<ApiResponse<Order[]>> => {
     const response = await apiClient.get('/orders/api/order');
     return response.data;
   },
@@ -305,83 +278,104 @@ export const ordersApi = {
   },
 
   getClientOrderById: async (clientId: string): Promise<ApiResponse<Order[]>> => {
-    const response = await apiClient.get(`orders/api/order/client/${clientId}`);
+    const response = await apiClient.get(`/orders/api/order/client/${clientId}`);
     return response.data;
   },
 
-  getClientOrderSearch: async (params: ClientSearchParams): Promise<ApiResponse<Order[]>> => {
+  searchOrders: async (params: ClientSearchParams): Promise<ApiResponse<Order[]>> => {
     const searchParams = new URLSearchParams();
     if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
     if (params.cus_name) searchParams.append('cus_name', params.cus_name);
     if (params.phone_number) searchParams.append('phone_number', params.phone_number);
 
-    const response = await apiClient.get(`/api/order/search?${searchParams.toString()}`);
+    const response = await apiClient.get(`/orders/api/order/search?${searchParams.toString()}`);
     return response.data;
   },
 
   getNextOrderId: async (): Promise<ApiResponse<{ next_order_id: number }>> => {
-    const response = await apiClient.get('/api/order/next-id');
+    const response = await apiClient.get('/orders/api/order/next-id');
     return response.data;
   },
 
   getLastOrders: async (): Promise<ApiResponse<Order[]>> => {
-    const response = await apiClient.get('/api/order/last');
+    const response = await apiClient.get('/orders/api/order/last');
     return response.data;
   },
 
   printOrder: async (orderId: number): Promise<ApiResponse> => {
-    const response = await apiClient.get(`/api/order/print?order_id=${orderId}`);
+    const response = await apiClient.get(`/orders/api/order/print?order_id=${orderId}`);
     return response.data;
-  },
+  }
 };
 
-// Pawns API - Based on your Swagger "/api/pawn"
+// Pawns API - Updated to match exact endpoints
 export const pawnsApi = {
-  getpawn: async (): Promise<ApiResponse<Pawn[]>> => {
-    const response = await apiClient.get('/api/pawn');
+  getAll: async (): Promise<ApiResponse<Pawn[]>> => {
+    const response = await apiClient.get('/pawn/api/pawn');
     return response.data;
   },
   
   create: async (pawn: PawnCreateData): Promise<ApiResponse<Pawn>> => {
-    const response = await apiClient.post('/api/pawn', pawn);
+    const response = await apiClient.post('/pawn/api/pawn', pawn);
     return response.data;
   },
 
-  getClientPawns: async (): Promise<ApiResponse<Pawn[]>> => {
-    const response = await apiClient.get('/api/pawn/all_client');
+  getClientPawns: async (params?: { page?: number; search_id?: number; search_name?: string; search_phone?: string; search_address?: string }): Promise<ApiResponse<Pawn[]>> => {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.page) {
+      queryParams.append('page', params.page.toString());
+    }
+    if (params?.search_id) {
+      queryParams.append('search_id', params.search_id.toString());
+    }
+    if (params?.search_name) {
+      queryParams.append('search_name', params.search_name);
+    }
+    if (params?.search_phone) {
+      queryParams.append('search_phone', params.search_phone);
+    }
+    if (params?.search_address) {
+      queryParams.append('search_address', params.search_address);
+    }
+    
+    const url = queryParams.toString() 
+      ? `/pawn/api/pawn/all_client?${queryParams.toString()}`
+      : '/pawn/api/pawn/all_client';
+
+    const response = await apiClient.get(url);
     return response.data;
   },
 
   getClientPawnById: async (clientId: string): Promise<ApiResponse<Pawn[]>> => {
-    const response = await apiClient.get(`/api/pawn/client/${clientId}`);
+    const response = await apiClient.get(`/pawn/api/pawn/client/${clientId}`);
     return response.data;
   },
   
-  getClientPawnSearch: async (params: ClientSearchParams): Promise<ApiResponse<Pawn[]>> => {
+  searchPawns: async (params: ClientSearchParams): Promise<ApiResponse<Pawn[]>> => {
     const searchParams = new URLSearchParams();
     if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
     if (params.cus_name) searchParams.append('cus_name', params.cus_name);
     if (params.phone_number) searchParams.append('phone_number', params.phone_number);
 
-    const response = await apiClient.get(`/api/pawn/search?${searchParams.toString()}`);
+    const response = await apiClient.get(`/pawn/api/pawn/search?${searchParams.toString()}`);
     return response.data;
   },
 
   getNextPawnId: async (): Promise<ApiResponse<{ next_id: number }>> => {
-    const response = await apiClient.get('/api/pawn/next-id');
+    const response = await apiClient.get('/pawn/api/pawn/next-id');
     return response.data;
   },
 
   getLastPawns: async (): Promise<ApiResponse<Pawn[]>> => {
-    const response = await apiClient.get('/api/pawn/last');
+    const response = await apiClient.get('/pawn/api/pawn/last');
     return response.data;
   },
 
-  // NEW: Print pawn function
   printPawn: async (pawnId: number): Promise<ApiResponse> => {
-    const response = await apiClient.get(`/api/pawn/print?pawn_id=${pawnId}`);
+    const response = await apiClient.get(`/pawn/api/pawn/print?pawn_id=${pawnId}`);
     return response.data;
-  },
+  }
 };
 
 export default apiClient;
